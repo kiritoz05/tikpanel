@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TikPanel - Control para Streamers</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a0f;color:#fff;font-family:'DM Sans',sans-serif;min-height:100vh}
+  input,select,button{font-family:'DM Sans',sans-serif}
+  ::-webkit-scrollbar{width:4px}
+  ::-webkit-scrollbar-track{background:#0d0d15}
+  ::-webkit-scrollbar-thumb{background:#2a2a3a;border-radius:2px}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+  @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(200%)}}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes glow{0%,100%{box-shadow:0 0 20px rgba(254,44,85,0.3)}50%{box-shadow:0 0 40px rgba(254,44,85,0.6)}}
+  .animate-in{animation:fadeIn 0.4s ease forwards}
+  .live-dot{animation:pulse 1s infinite}
+  .connecting-fill{animation:slide 1.5s ease-in-out infinite}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const USERS = {
+  "admin@tikpanel.com": { password: "admin123", name: "Admin", plan: "Pro", avatar: "A" },
+  "usuario@tikpanel.com": { password: "pass123", name: "StreamerPro", plan: "Free", avatar: "S" },
+};
+
+const VOICES = ["Español (México)","Español (España)","Español (Argentina)","Español (Colombia)"];
+const SOUNDS = ["Chime 🔔","Bell 🎵","Coin 💰","Aplausos 👏","Fanfarria 🎺"];
+
+function Toggle({on, onChange}){
+  return(
+    <div onClick={onChange} style={{width:46,height:26,borderRadius:13,cursor:"pointer",position:"relative",
+      background:on?"#fe2c55":"#2a2a3a",transition:"background 0.25s",flexShrink:0}}>
+      <div style={{position:"absolute",top:3,left:on?23:3,width:20,height:20,borderRadius:"50%",
+        background:"#fff",transition:"left 0.25s",boxShadow:"0 2px 6px rgba(0,0,0,0.3)"}}/>
+    </div>
+  );
+}
+
+function LoginScreen({onLogin}){
+  const [email,setEmail]=useState("");
+  const [pass,setPass]=useState("");
+  const [err,setErr]=useState("");
+  const [loading,setLoading]=useState(false);
+
+  const handle=()=>{
+    setErr("");setLoading(true);
+    setTimeout(()=>{
+      const u=USERS[email.toLowerCase()];
+      if(u&&u.password===pass){onLogin({...u,email})}
+      else{setErr("Credenciales incorrectas. Contacta al administrador.");setLoading(false);}
+    },800);
+  };
+
+  return(
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",
+      background:"#0a0a0f",position:"relative",overflow:"hidden",padding:20}}>
+      {/* Background glow */}
+      <div style={{position:"fixed",width:700,height:700,borderRadius:"50%",
+        background:"radial-gradient(circle,rgba(254,44,85,0.12) 0%,transparent 70%)",
+        top:"50%",left:"50%",transform:"translate(-50%,-50%)",pointerEvents:"none"}}/>
+      <div style={{position:"fixed",width:400,height:400,borderRadius:"50%",
+        background:"radial-gradient(circle,rgba(37,244,238,0.06) 0%,transparent 70%)",
+        top:"20%",right:"10%",pointerEvents:"none"}}/>
+
+      <div className="animate-in" style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:24,
+        padding:"48px 40px",width:"100%",maxWidth:420,position:"relative",zIndex:1,
+        boxShadow:"0 40px 100px rgba(0,0,0,0.7)"}}>
+
+        {/* Logo */}
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+          <div style={{width:42,height:42,borderRadius:12,
+            background:"linear-gradient(135deg,#fe2c55,#25f4ee)",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:20}}>T</div>
+          <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:26,letterSpacing:-1}}>
+            ik<span style={{color:"#fe2c55"}}>Panel</span>
+          </span>
+        </div>
+        <p style={{color:"#555",fontSize:13,marginBottom:28,fontWeight:500}}>
+          Plataforma de control para streamers de TikTok
+        </p>
+
+        <div style={{display:"inline-flex",alignItems:"center",gap:8,
+          background:"rgba(254,44,85,0.08)",border:"1px solid rgba(254,44,85,0.2)",
+          borderRadius:20,padding:"5px 14px",fontSize:12,color:"#fe2c55",marginBottom:32,fontWeight:600}}>
+          🔒 Acceso solo por invitación
+        </div>
+
+        <div style={{marginBottom:18}}>
+          <label style={{display:"block",color:"#666",fontSize:11,fontWeight:600,
+            letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Correo electrónico</label>
+          <input value={email} onChange={e=>setEmail(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&handle()}
+            placeholder="tu@correo.com" type="email"
+            style={{width:"100%",background:"#0d0d15",border:"1px solid #2a2a3a",borderRadius:12,
+              padding:"13px 16px",color:"#fff",fontSize:14,outline:"none"}}/>
+        </div>
+
+        <div style={{marginBottom:20}}>
+          <label style={{display:"block",color:"#666",fontSize:11,fontWeight:600,
+            letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Contraseña</label>
+          <input value={pass} onChange={e=>setPass(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&handle()}
+            placeholder="••••••••" type="password"
+            style={{width:"100%",background:"#0d0d15",border:"1px solid #2a2a3a",borderRadius:12,
+              padding:"13px 16px",color:"#fff",fontSize:14,outline:"none"}}/>
+        </div>
+
+        {err&&<div style={{background:"rgba(254,44,85,0.08)",border:"1px solid rgba(254,44,85,0.25)",
+          borderRadius:10,padding:"10px 14px",color:"#fe2c55",fontSize:13,marginBottom:16}}>{err}</div>}
+
+        <button onClick={handle} disabled={loading}
+          style={{width:"100%",background:loading?"#2a2a3a":"linear-gradient(135deg,#fe2c55,#ff6b81)",
+            border:"none",borderRadius:12,padding:"14px",color:"#fff",fontSize:15,fontWeight:700,
+            cursor:loading?"not-allowed":"pointer",transition:"all 0.2s",letterSpacing:0.3}}>
+          {loading?"Verificando...":"Ingresar →"}
+        </button>
+
+        <p style={{color:"#333",fontSize:12,textAlign:"center",marginTop:24}}>
+          ¿No tienes acceso? Solicítalo al administrador
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function App(){
+  const [user,setUser]=useState(null);
+  const [tab,setTab]=useState("dashboard");
+  const [tiktokUser,setTiktokUser]=useState("");
+  const [connected,setConnected]=useState(false);
+  const [connecting,setConnecting]=useState(false);
+  const [dots,setDots]=useState("");
+  const [stats,setStats]=useState({viewers:0,gifts:0,follows:0,messages:0});
+  const [log,setLog]=useState([]);
+  const [ttsOn,setTtsOn]=useState(true);
+  const [ttsVoice,setTtsVoice]=useState(VOICES[0]);
+  const [ttsVol,setTtsVol]=useState(80);
+  const [alertsOn,setAlertsOn]=useState(true);
+  const [sound,setSound]=useState(SOUNDS[0]);
+  const [sidebarOpen,setSidebarOpen]=useState(false);
+
+  useEffect(()=>{
+    if(!connected)return;
+    const t=setInterval(()=>{
+      setStats(p=>({
+        viewers:p.viewers+Math.floor(Math.random()*4),
+        gifts:p.gifts+(Math.random()>0.75?1:0),
+        follows:p.follows+(Math.random()>0.8?1:0),
+        messages:p.messages+Math.floor(Math.random()*3),
+      }));
+      const evs=[
+        {type:"gift",text:`🎁 @fan${Math.floor(Math.random()*999)} envió una Rosa`},
+        {type:"follow",text:`➕ @user${Math.floor(Math.random()*999)} te siguió`},
+        {type:"msg",text:`💬 @viewer${Math.floor(Math.random()*500)}: ¡Hola desde el LIVE! 🔥`},
+        {type:"tts",text:`🔊 TTS reprodujo un mensaje`},
+      ];
+      if(Math.random()>0.4)
+        setLog(p=>[evs[Math.floor(Math.random()*evs.length)],...p].slice(0,25));
+    },2200);
+    return()=>clearInterval(t);
+  },[connected]);
+
+  useEffect(()=>{
+    if(!connecting)return;
+    const t=setInterval(()=>setDots(d=>d.length>=3?"":d+"."),400);
+    return()=>clearInterval(t);
+  },[connecting]);
+
+  const connect=()=>{
+    if(!tiktokUser.trim())return;
+    setConnecting(true);
+    setTimeout(()=>{
+      setConnecting(false);setConnected(true);
+      setStats({viewers:8,gifts:0,follows:0,messages:0});
+      setLog([{type:"sys",text:`✅ Conectado exitosamente a @${tiktokUser}`}]);
+    },3000);
+  };
+
+  const disconnect=()=>{
+    setConnected(false);setLog([]);
+    setStats({viewers:0,gifts:0,follows:0,messages:0});
+  };
+
+  if(!user) return <LoginScreen onLogin={setUser}/>;
+
+  const tabs=[
+    {id:"dashboard",icon:"⚡",label:"Dashboard"},
+    {id:"tts",icon:"🔊",label:"TTS"},
+    {id:"alerts",icon:"🔔",label:"Alertas"},
+    {id:"chat",icon:"💬",label:"Chat Bot"},
+  ];
+
+  const logColor={
+    gift:"rgba(254,44,85,0.1)",follow:"rgba(37,244,238,0.1)",
+    msg:"rgba(255,255,255,0.04)",tts:"rgba(124,58,237,0.1)",sys:"rgba(37,244,238,0.08)"
+  };
+  const logBorder={
+    gift:"#fe2c55",follow:"#25f4ee",msg:"#333",tts:"#a78bfa",sys:"#25f4ee"
+  };
+
+  return(
+    <div style={{display:"flex",minHeight:"100vh",background:"#0a0a0f"}}>
+
+      {/* Mobile overlay */}
+      {sidebarOpen&&<div onClick={()=>setSidebarOpen(false)}
+        style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:40}}/>}
+
+      {/* Sidebar */}
+      <div style={{width:240,background:"#10101a",borderRight:"1px solid #1e1e2e",
+        display:"flex",flexDirection:"column",padding:"24px 14px",
+        position:"fixed",top:0,bottom:0,left:0,zIndex:50,
+        transform:sidebarOpen?"translateX(0)":"translateX(-100%)",
+        transition:"transform 0.3s ease",
+        "@media(min-width:768px)":{transform:"translateX(0)"}}}>
+
+        {/* Logo */}
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:24,paddingLeft:6}}>
+          <div style={{width:32,height:32,borderRadius:9,
+            background:"linear-gradient(135deg,#fe2c55,#25f4ee)",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:16}}>T</div>
+          <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,letterSpacing:-0.5}}>
+            ik<span style={{color:"#fe2c55"}}>Panel</span>
+          </span>
+        </div>
+
+        {/* User */}
+        <div style={{display:"flex",alignItems:"center",gap:10,
+          background:"#1a1a2a",borderRadius:12,padding:"12px 12px",marginBottom:14}}>
+          <div style={{width:34,height:34,borderRadius:"50%",flexShrink:0,
+            background:"linear-gradient(135deg,#fe2c55,#25f4ee)",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontWeight:800,fontSize:15,fontFamily:"'Syne',sans-serif"}}>{user.avatar}</div>
+          <div style={{overflow:"hidden"}}>
+            <div style={{fontSize:13,fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{user.name}</div>
+            <div style={{fontSize:11,color:"#fe2c55",fontWeight:600,marginTop:2}}>{user.plan}</div>
+          </div>
+        </div>
+
+        {/* Status */}
+        <div style={{display:"flex",alignItems:"center",gap:8,
+          background:connected?"rgba(37,244,238,0.06)":"rgba(255,255,255,0.03)",
+          border:`1px solid ${connected?"rgba(37,244,238,0.25)":"#1e1e2e"}`,
+          borderRadius:20,padding:"6px 12px",fontSize:12,
+          color:connected?"#25f4ee":"#444",marginBottom:22,overflow:"hidden"}}>
+          <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,
+            background:connected?"#25f4ee":"#333",
+            boxShadow:connected?"0 0 8px #25f4ee":"none"}}
+            className={connected?"live-dot":""}/>
+          <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            {connected?`@${tiktokUser}`:"Sin conexión"}
+          </span>
+        </div>
+
+        {/* Nav */}
+        <nav style={{display:"flex",flexDirection:"column",gap:3,flex:1}}>
+          {tabs.map(t=>(
+            <button key={t.id} onClick={()=>{setTab(t.id);setSidebarOpen(false);}}
+              style={{display:"flex",alignItems:"center",gap:12,
+                background:tab===t.id?"rgba(254,44,85,0.1)":"transparent",
+                border:tab===t.id?"1px solid rgba(254,44,85,0.2)":"1px solid transparent",
+                borderRadius:10,padding:"11px 12px",
+                color:tab===t.id?"#fff":"#555",cursor:"pointer",
+                fontSize:13,fontWeight:tab===t.id?700:500,textAlign:"left",
+                transition:"all 0.15s"}}>
+              <span style={{fontSize:17}}>{t.icon}</span>{t.label}
+            </button>
+          ))}
+        </nav>
+
+        <button onClick={()=>{setUser(null);setConnected(false);}}
+          style={{background:"transparent",border:"1px solid #1e1e2e",borderRadius:10,
+            padding:"10px 12px",color:"#444",cursor:"pointer",fontSize:13,marginTop:8}}>
+          Cerrar sesión
+        </button>
+      </div>
+
+      {/* Main */}
+      <div style={{flex:1,marginLeft:0,display:"flex",flexDirection:"column",minWidth:0}}>
+
+        {/* Top bar */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+          padding:"16px 20px",borderBottom:"1px solid #1e1e2e",
+          background:"#0a0a0f",position:"sticky",top:0,zIndex:30}}>
+          <div style={{display:"flex",alignItems:"center",gap:14}}>
+            <button onClick={()=>setSidebarOpen(!sidebarOpen)}
+              style={{background:"#1a1a2a",border:"1px solid #2a2a3a",borderRadius:8,
+                width:36,height:36,cursor:"pointer",color:"#fff",fontSize:16,
+                display:"flex",alignItems:"center",justifyContent:"center"}}>☰</button>
+            <div>
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:17}}>
+                {tabs.find(t=>t.id===tab)?.icon} {tabs.find(t=>t.id===tab)?.label}
+              </div>
+            </div>
+          </div>
+          {connected&&(
+            <div style={{display:"flex",alignItems:"center",gap:7,
+              background:"rgba(254,44,85,0.1)",border:"1px solid rgba(254,44,85,0.25)",
+              borderRadius:20,padding:"5px 14px",color:"#fe2c55",fontWeight:800,fontSize:11,letterSpacing:1}}>
+              <div className="live-dot" style={{width:7,height:7,borderRadius:"50%",background:"#fe2c55",boxShadow:"0 0 8px #fe2c55"}}/>
+              EN VIVO
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div style={{padding:20,flex:1,overflowY:"auto"}}>
+
+          {/* DASHBOARD */}
+          {tab==="dashboard"&&(
+            <div className="animate-in">
+              {/* Connect */}
+              <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20,marginBottom:16}}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,marginBottom:16}}>🎯 Conectar al LIVE</div>
+                <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                  <div style={{display:"flex",alignItems:"center",flex:1,minWidth:160,
+                    background:"#0d0d15",border:"1px solid #2a2a3a",borderRadius:10,overflow:"hidden"}}>
+                    <span style={{color:"#fe2c55",fontWeight:800,padding:"0 12px",fontSize:16,flexShrink:0}}>@</span>
+                    <input value={tiktokUser} onChange={e=>setTiktokUser(e.target.value)}
+                      placeholder="usuario_tiktok" disabled={connected||connecting}
+                      style={{flex:1,background:"transparent",border:"none",padding:"12px 8px 12px 0",
+                        color:"#fff",fontSize:14,outline:"none",minWidth:0}}/>
+                  </div>
+                  {!connected?(
+                    <button onClick={connect} disabled={connecting||!tiktokUser}
+                      style={{background:(!connecting&&tiktokUser)?"linear-gradient(135deg,#fe2c55,#ff6b81)":"#1e1e2e",
+                        border:"none",borderRadius:10,padding:"12px 20px",
+                        color:(!connecting&&tiktokUser)?"#fff":"#444",
+                        fontWeight:700,cursor:(!connecting&&tiktokUser)?"pointer":"not-allowed",fontSize:14,whiteSpace:"nowrap"}}>
+                      {connecting?`Conectando${dots}`:"Conectar"}
+                    </button>
+                  ):(
+                    <button onClick={disconnect}
+                      style={{background:"rgba(254,44,85,0.1)",border:"1px solid rgba(254,44,85,0.25)",
+                        borderRadius:10,padding:"12px 20px",color:"#fe2c55",
+                        fontWeight:700,cursor:"pointer",fontSize:14,whiteSpace:"nowrap"}}>
+                      Desconectar
+                    </button>
+                  )}
+                </div>
+                {connecting&&(
+                  <div style={{height:3,background:"#1e1e2e",borderRadius:2,marginTop:14,overflow:"hidden"}}>
+                    <div className="connecting-fill" style={{height:"100%",width:"50%",
+                      background:"linear-gradient(90deg,#25f4ee,#fe2c55)",borderRadius:2}}/>
+                  </div>
+                )}
+              </div>
+
+              {/* Stats */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:12,marginBottom:16}}>
+                {[
+                  {label:"Espectadores",value:stats.viewers,icon:"👁️",color:"#25f4ee"},
+                  {label:"Regalos",value:stats.gifts,icon:"🎁",color:"#fe2c55"},
+                  {label:"Seguidores",value:stats.follows,icon:"➕",color:"#ffd700"},
+                  {label:"Mensajes",value:stats.messages,icon:"💬",color:"#a78bfa"},
+                ].map(s=>(
+                  <div key={s.label} style={{background:"#13131a",border:"1px solid #1e1e2e",
+                    borderRadius:14,padding:"18px 16px",textAlign:"center"}}>
+                    <div style={{fontSize:22,marginBottom:6}}>{s.icon}</div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:26,color:s.color}}>{s.value.toLocaleString()}</div>
+                    <div style={{color:"#444",fontSize:11,marginTop:4,fontWeight:600,letterSpacing:0.5}}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Log */}
+              <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20}}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,marginBottom:14}}>📋 Actividad en tiempo real</div>
+                <div style={{background:"#0d0d15",borderRadius:10,padding:14,height:220,overflowY:"auto",display:"flex",flexDirection:"column",gap:6}}>
+                  {log.length===0?(
+                    <div style={{color:"#333",fontSize:13,textAlign:"center",marginTop:80}}>
+                      {connected?"Esperando actividad...":"Conecta tu LIVE para ver la actividad"}
+                    </div>
+                  ):log.map((item,i)=>(
+                    <div key={i} style={{fontSize:12,padding:"7px 10px",borderRadius:7,
+                      background:logColor[item.type]||"rgba(255,255,255,0.03)",
+                      borderLeft:`2px solid ${logBorder[item.type]||"#333"}`,
+                      color:logBorder[item.type]||"#888"}}>
+                      {item.text}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TTS */}
+          {tab==="tts"&&(
+            <div className="animate-in">
+              <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20,marginBottom:16}}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,marginBottom:20}}>🔊 Texto a Voz (TTS)</div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24}}>
+                  <span style={{color:"#aaa",fontSize:14}}>Activar TTS</span>
+                  <Toggle on={ttsOn} onChange={()=>setTtsOn(!ttsOn)}/>
+                </div>
+                <div style={{marginBottom:20}}>
+                  <label style={{display:"block",color:"#666",fontSize:11,fontWeight:600,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Voz</label>
+                  <select value={ttsVoice} onChange={e=>setTtsVoice(e.target.value)} disabled={!ttsOn}
+                    style={{width:"100%",background:"#0d0d15",border:"1px solid #2a2a3a",
+                      borderRadius:10,padding:"11px 14px",color:ttsOn?"#fff":"#444",fontSize:14,outline:"none"}}>
+                    {VOICES.map(v=><option key={v}>{v}</option>)}
+                  </select>
+                </div>
+                <div style={{marginBottom:24}}>
+                  <label style={{display:"block",color:"#666",fontSize:11,fontWeight:600,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>
+                    Volumen: {ttsVol}%
+                  </label>
+                  <input type="range" min="0" max="100" value={ttsVol}
+                    onChange={e=>setTtsVol(Number(e.target.value))} disabled={!ttsOn}
+                    style={{width:"100%",accentColor:"#fe2c55"}}/>
+                </div>
+                <div style={{background:"rgba(37,244,238,0.05)",border:"1px solid rgba(37,244,238,0.15)",
+                  borderRadius:10,padding:"14px 16px",color:"#aaa",fontSize:13,lineHeight:1.7,marginBottom:20}}>
+                  💡 <strong style={{color:"#25f4ee"}}>¿Cómo funciona?</strong><br/>
+                  El TTS lee en voz alta los mensajes y regalos de tu LIVE automáticamente para que nunca te pierdas nada.
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                  {["Regalos","Mensajes del chat","Nuevos seguidores","Suscripciones"].map(o=>(
+                    <label key={o} style={{display:"flex",alignItems:"center",gap:10,color:"#aaa",fontSize:14,cursor:"pointer"}}>
+                      <input type="checkbox" defaultChecked disabled={!ttsOn} style={{accentColor:"#fe2c55",width:16,height:16}}/>
+                      {o}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20}}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,marginBottom:14}}>🎤 Probar TTS</div>
+                <input placeholder="Escribe un texto para probar..." disabled={!ttsOn}
+                  style={{width:"100%",background:"#0d0d15",border:"1px solid #2a2a3a",borderRadius:10,
+                    padding:"12px 14px",color:"#fff",fontSize:14,outline:"none",marginBottom:12}}/>
+                <button disabled={!ttsOn}
+                  style={{background:ttsOn?"rgba(254,44,85,0.1)":"transparent",
+                    border:"1px solid rgba(254,44,85,0.2)",borderRadius:10,
+                    padding:"10px 20px",color:ttsOn?"#fe2c55":"#333",fontWeight:700,cursor:ttsOn?"pointer":"not-allowed",fontSize:13}}>
+                  ▶ Reproducir prueba
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ALERTS */}
+          {tab==="alerts"&&(
+            <div className="animate-in">
+              <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20}}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,marginBottom:20}}>🔔 Alertas de Sonido</div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24}}>
+                  <span style={{color:"#aaa",fontSize:14}}>Activar alertas</span>
+                  <Toggle on={alertsOn} onChange={()=>setAlertsOn(!alertsOn)}/>
+                </div>
+                <div style={{marginBottom:24}}>
+                  <label style={{display:"block",color:"#666",fontSize:11,fontWeight:600,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Sonido de regalo</label>
+                  <select value={sound} onChange={e=>setSound(e.target.value)} disabled={!alertsOn}
+                    style={{width:"100%",background:"#0d0d15",border:"1px solid #2a2a3a",
+                      borderRadius:10,padding:"11px 14px",color:alertsOn?"#fff":"#444",fontSize:14,outline:"none"}}>
+                    {SOUNDS.map(s=><option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                {[
+                  {event:"Nuevo seguidor",icon:"➕",color:"#25f4ee"},
+                  {event:"Regalo recibido",icon:"🎁",color:"#fe2c55"},
+                  {event:"Suscripción",icon:"⭐",color:"#ffd700"},
+                  {event:"Compartir LIVE",icon:"📤",color:"#a78bfa"},
+                ].map(item=>(
+                  <div key={item.event} style={{display:"flex",alignItems:"center",gap:14,
+                    padding:"14px 0",borderBottom:"1px solid #1a1a2a"}}>
+                    <div style={{width:38,height:38,borderRadius:10,flexShrink:0,
+                      background:item.color+"15",color:item.color,
+                      display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>
+                      {item.icon}
+                    </div>
+                    <span style={{color:"#aaa",fontSize:14,flex:1}}>{item.event}</span>
+                    <input type="checkbox" defaultChecked disabled={!alertsOn}
+                      style={{accentColor:"#fe2c55",width:16,height:16}}/>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* CHATBOT */}
+          {tab==="chat"&&(
+            <div className="animate-in">
+              <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20}}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,marginBottom:14}}>💬 Chat Bot Automático</div>
+                <div style={{background:"rgba(37,244,238,0.05)",border:"1px solid rgba(37,244,238,0.15)",
+                  borderRadius:10,padding:"14px 16px",color:"#aaa",fontSize:13,lineHeight:1.7,marginBottom:20}}>
+                  💡 El bot responde automáticamente cuando alguien escribe una palabra clave en tu LIVE.
+                </div>
+                {[
+                  {trigger:"!hola",response:"¡Hola! Bienvenido al LIVE 🎉"},
+                  {trigger:"!precio",response:"Revisa el link en mi bio 👆"},
+                  {trigger:"!redes",response:"Sígueme en todas mis redes 📱"},
+                ].map((cmd,i)=>(
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:10,
+                    background:"#0d0d15",borderRadius:10,padding:"12px 14px",marginBottom:10,flexWrap:"wrap",gap:8}}>
+                    <span style={{color:"#25f4ee",fontWeight:700,fontSize:13,minWidth:70}}>{cmd.trigger}</span>
+                    <span style={{color:"#333"}}>→</span>
+                    <span style={{color:"#aaa",fontSize:13,flex:1}}>{cmd.response}</span>
+                  </div>
+                ))}
+                <button style={{background:"rgba(254,44,85,0.08)",border:"1px dashed rgba(254,44,85,0.3)",
+                  borderRadius:10,padding:"11px 20px",color:"#fe2c55",fontWeight:700,
+                  cursor:"pointer",fontSize:13,width:"100%",marginTop:4}}>
+                  + Añadir comando
+                </button>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.render(<App/>, document.getElementById("root"));
+</script>
+</body>
+</html>
