@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:#0a0a0f;color:#fff;font-family:'DM Sans',sans-serif;min-height:100vh}
@@ -28,6 +29,8 @@
 <div id="root"></div>
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
+
+const SERVER_URL = "https://tikpanel-production.up.railway.app";
 
 const USERS = {
   "admin@tikpanel.com": { password: "admin123", name: "Admin", plan: "Pro", avatar: "A" },
@@ -152,25 +155,39 @@ function App(){
   const [sidebarOpen,setSidebarOpen]=useState(false);
 
   useEffect(()=>{
-    if(!connected)return;
-    const t=setInterval(()=>{
-      setStats(p=>({
-        viewers:p.viewers+Math.floor(Math.random()*4),
-        gifts:p.gifts+(Math.random()>0.75?1:0),
-        follows:p.follows+(Math.random()>0.8?1:0),
-        messages:p.messages+Math.floor(Math.random()*3),
-      }));
-      const evs=[
-        {type:"gift",text:`🎁 @fan${Math.floor(Math.random()*999)} envió una Rosa`},
-        {type:"follow",text:`➕ @user${Math.floor(Math.random()*999)} te siguió`},
-        {type:"msg",text:`💬 @viewer${Math.floor(Math.random()*500)}: ¡Hola desde el LIVE! 🔥`},
-        {type:"tts",text:`🔊 TTS reprodujo un mensaje`},
-      ];
-      if(Math.random()>0.4)
-        setLog(p=>[evs[Math.floor(Math.random()*evs.length)],...p].slice(0,25));
-    },2200);
-    return()=>clearInterval(t);
-  },[connected]);
+    // Conectar socket al servidor Railway
+    const socket = io(SERVER_URL, { transports: ["websocket"] });
+
+    socket.on("event", (data) => {
+      if(data.type === "chat"){
+        setLog(p=>[{type:"msg", text:`💬 @${data.user}: ${data.comment}`},...p].slice(0,25));
+        setStats(p=>({...p, messages: p.messages+1}));
+      } else if(data.type === "gift"){
+        setLog(p=>[{type:"gift", text:`🎁 @${data.user} envió ${data.giftCount}x ${data.giftName}`},...p].slice(0,25));
+        setStats(p=>({...p, gifts: p.gifts+1}));
+      } else if(data.type === "follow"){
+        setLog(p=>[{type:"follow", text:`➕ @${data.user} te siguió`},...p].slice(0,25));
+        setStats(p=>({...p, follows: p.follows+1}));
+      } else if(data.type === "like"){
+        setLog(p=>[{type:"msg", text:`❤️ @${data.user} dio like`},...p].slice(0,25));
+      }
+    });
+
+    socket.on("viewers", (data) => {
+      setStats(p=>({...p, viewers: data.count}));
+    });
+
+    socket.on("disconnected", () => {
+      setConnected(false);
+      setLog(p=>[{type:"sys", text:"❌ Desconectado del LIVE"},...p]);
+    });
+
+    socket.on("error", (data) => {
+      setLog(p=>[{type:"sys", text:`⚠️ Error: ${data.message}`},...p]);
+    });
+
+    return () => socket.disconnect();
+  },[]);
 
   useEffect(()=>{
     if(!connecting)return;
@@ -178,18 +195,36 @@ function App(){
     return()=>clearInterval(t);
   },[connecting]);
 
-  const connect=()=>{
+  const connect=async()=>{
     if(!tiktokUser.trim())return;
     setConnecting(true);
-    setTimeout(()=>{
-      setConnecting(false);setConnected(true);
-      setStats({viewers:8,gifts:0,follows:0,messages:0});
-      setLog([{type:"sys",text:`✅ Conectado exitosamente a @${tiktokUser}`}]);
-    },3000);
+    try {
+      const res = await fetch(`${SERVER_URL}/connect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: tiktokUser })
+      });
+      const data = await res.json();
+      if(data.success){
+        setConnecting(false); setConnected(true);
+        setStats({viewers:0,gifts:0,follows:0,messages:0});
+        setLog([{type:"sys", text:`✅ Conectado a @${tiktokUser} — esperando actividad del LIVE`}]);
+      } else {
+        setConnecting(false);
+        setLog([{type:"sys", text:`⚠️ ${data.error || "No se pudo conectar. ¿Estás en LIVE?"}`}]);
+      }
+    } catch(e) {
+      setConnecting(false);
+      setLog([{type:"sys", text:"⚠️ Error al conectar con el servidor"}]);
+    }
   };
 
-  const disconnect=()=>{
-    setConnected(false);setLog([]);
+  const disconnect=async()=>{
+    await fetch(`${SERVER_URL}/disconnect`, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({username: tiktokUser})
+    }).catch(()=>{});
+    setConnected(false); setLog([]);
     setStats({viewers:0,gifts:0,follows:0,messages:0});
   };
 
