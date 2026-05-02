@@ -31,6 +31,19 @@
 const { useState, useEffect, useRef } = React;
 
 const SERVER_URL = "https://tikpanel-production.up.railway.app";
+const ELEVENLABS_API_KEY = "sk_c59a0c3dddc47a866083fc9b58a7dbd92b722fb2fb12da11";
+
+// Voces predefinidas en español
+const DEFAULT_VOICES = [
+  { id: "cgSgspJ2msm6clMCkdW9", name: "Bella (Español Natural)" },
+  { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel (Multilingüe)" },
+  { id: "AZnzlk1XvdvUeBnXmlld", name: "Domi (Energética)" },
+  { id: "EXAVITQu4vr4xnSDxMaL", name: "Elli (Joven)" },
+  { id: "ErXwobaYiN019PkySvjV", name: "Antoni (Masculina)" },
+  { id: "VR6AewLTigWG4xSOukaG", name: "Arnold (Masculina Profunda)" },
+  { id: "pNInz6obpgDQGcFmaJgB", name: "Adam (Narrador)" },
+  { id: "yoZ06aMxZJJ28mfd3POQ", name: "Sam (Masculina Cálida)" },
+];
 
 const USERS = {
   "admin@tikpanel.com": { password: "admin123", name: "Admin", plan: "Pro", avatar: "A" },
@@ -148,13 +161,32 @@ function App(){
   const [stats,setStats]=useState({viewers:0,gifts:0,follows:0,messages:0});
   const [log,setLog]=useState([]);
   const [ttsOn,setTtsOn]=useState(true);
-  const [ttsVoice,setTtsVoice]=useState(VOICES[0]);
+  const [ttsVoice,setTtsVoice]=useState("cgSgspJ2msm6clMCkdW9");
   const [ttsVol,setTtsVol]=useState(80);
+  const [voices, setVoices]=useState(DEFAULT_VOICES);
+  const [loadingVoices, setLoadingVoices]=useState(false);
   const ttsOnRef = useRef(true);
   const ttsVolRef = useRef(80);
 
   useEffect(()=>{ ttsOnRef.current = ttsOn; },[ttsOn]);
   useEffect(()=>{ ttsVolRef.current = ttsVol; },[ttsVol]);
+
+  // Cargar voces desde ElevenLabs
+  useEffect(()=>{
+    setLoadingVoices(true);
+    fetch("https://api.elevenlabs.io/v1/voices", {
+      headers: { "xi-api-key": ELEVENLABS_API_KEY }
+    })
+    .then(r=>r.json())
+    .then(data=>{
+      if(data.voices && data.voices.length > 0){
+        const mapped = data.voices.map(v=>({ id: v.voice_id, name: v.name }));
+        setVoices([...DEFAULT_VOICES, ...mapped.filter(v=>!DEFAULT_VOICES.find(d=>d.id===v.id))]);
+      }
+    })
+    .catch(()=>{}) // Si falla usa las predefinidas
+    .finally(()=>setLoadingVoices(false));
+  },[]);
   const [alertsOn,setAlertsOn]=useState(true);
   const [sound,setSound]=useState(SOUNDS[0]);
   const [sidebarOpen,setSidebarOpen]=useState(false);
@@ -476,11 +508,13 @@ function App(){
                   <Toggle on={ttsOn} onChange={()=>setTtsOn(!ttsOn)}/>
                 </div>
                 <div style={{marginBottom:20}}>
-                  <label style={{display:"block",color:"#666",fontSize:11,fontWeight:600,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Voz</label>
+                  <label style={{display:"block",color:"#666",fontSize:11,fontWeight:600,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>
+                    Voz {loadingVoices && <span style={{color:"#25f4ee"}}>⏳ Cargando...</span>}
+                  </label>
                   <select value={ttsVoice} onChange={e=>setTtsVoice(e.target.value)} disabled={!ttsOn}
                     style={{width:"100%",background:"#0d0d15",border:"1px solid #2a2a3a",
                       borderRadius:10,padding:"11px 14px",color:ttsOn?"#fff":"#444",fontSize:14,outline:"none"}}>
-                    {VOICES.map(v=><option key={v}>{v}</option>)}
+                    {voices.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}
                   </select>
                 </div>
                 <div style={{marginBottom:24}}>
@@ -510,14 +544,20 @@ function App(){
                 <input id="ttsTest" placeholder="Escribe un texto para probar..." disabled={!ttsOn}
                   style={{width:"100%",background:"#0d0d15",border:"1px solid #2a2a3a",borderRadius:10,
                     padding:"12px 14px",color:"#fff",fontSize:14,outline:"none",marginBottom:12}}/>
-                <button disabled={!ttsOn} onClick={()=>{
-                  const text = document.getElementById("ttsTest").value || "Hola, esto es una prueba de TTS";
-                  const msg = new SpeechSynthesisUtterance(text);
-                  msg.lang = "es-MX";
-                  msg.volume = ttsVol / 100;
-                  msg.rate = 1.1;
-                  window.speechSynthesis.cancel();
-                  window.speechSynthesis.speak(msg);
+                <button disabled={!ttsOn} onClick={async()=>{
+                  const text = document.getElementById("ttsTest").value || "Hola, esto es una prueba de TTS con ElevenLabs";
+                  try {
+                    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ttsVoice}`, {
+                      method: "POST",
+                      headers: { "xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json", "Accept": "audio/mpeg" },
+                      body: JSON.stringify({ text, model_id: "eleven_multilingual_v2", voice_settings: { stability: 0.5, similarity_boost: 0.75 } })
+                    });
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const audio = new Audio(url);
+                    audio.volume = ttsVol / 100;
+                    audio.play();
+                  } catch(e) { alert("Error al reproducir TTS"); }
                 }}
                   style={{background:ttsOn?"rgba(254,44,85,0.1)":"transparent",
                     border:"1px solid rgba(254,44,85,0.2)",borderRadius:10,
