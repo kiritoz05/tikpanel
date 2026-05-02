@@ -20,9 +20,13 @@
   @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(200%)}}
   @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   @keyframes glow{0%,100%{box-shadow:0 0 20px rgba(254,44,85,0.3)}50%{box-shadow:0 0 40px rgba(254,44,85,0.6)}}
+  @keyframes heartPop{0%{transform:scale(1)}40%{transform:scale(1.5)}100%{transform:scale(1)}}
+  @keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-60px) scale(0.5)}}
   .animate-in{animation:fadeIn 0.4s ease forwards}
   .live-dot{animation:pulse 1s infinite}
   .connecting-fill{animation:slide 1.5s ease-in-out infinite}
+  .heart-pop{animation:heartPop 0.3s ease}
+  .float-heart{position:absolute;animation:floatUp 1s ease forwards;pointer-events:none;font-size:20px}
 </style>
 </head>
 <body>
@@ -158,8 +162,10 @@ function App(){
   const [connected,setConnected]=useState(false);
   const [connecting,setConnecting]=useState(false);
   const [dots,setDots]=useState("");
-  const [stats,setStats]=useState({viewers:0,gifts:0,follows:0,messages:0});
+  const [stats,setStats]=useState({viewers:0,gifts:0,follows:0,messages:0,likes:0});
   const [log,setLog]=useState([]);
+  const [likeAnim, setLikeAnim]=useState(false);
+  const [floatingHearts, setFloatingHearts]=useState([]);
   const [ttsOn,setTtsOn]=useState(true);
   const [ttsVoice,setTtsVoice]=useState("cgSgspJ2msm6clMCkdW9");
   const [ttsVol,setTtsVol]=useState(80);
@@ -228,7 +234,14 @@ function App(){
           window.speechSynthesis.speak(msg);
         }
       } else if(data.type === "like"){
-        setLog(p=>[{type:"msg", text:`❤️ @${data.user} dio like`},...p].slice(0,25));
+        setLog(p=>[{type:"msg", text:`❤️ @${data.user} dio ${data.likeCount} likes`},...p].slice(0,25));
+        setStats(p=>({...p, likes: p.likes + (data.likeCount || 1)}));
+        // Animación de corazones
+        setLikeAnim(true);
+        setTimeout(()=>setLikeAnim(false), 300);
+        const id = Date.now();
+        setFloatingHearts(p=>[...p, {id, x: Math.random()*60+20}]);
+        setTimeout(()=>setFloatingHearts(p=>p.filter(h=>h.id!==id)), 1000);
       }
     });
 
@@ -274,7 +287,7 @@ function App(){
       const data = await res.json();
       if(data.success){
         setConnecting(false); setConnected(true);
-        setStats({viewers:0,gifts:0,follows:0,messages:0});
+        setStats({viewers:0,gifts:0,follows:0,messages:0,likes:0});
         setLog([{type:"sys", text:`✅ Conectado a @${tiktokUser} — esperando actividad del LIVE`}]);
       } else {
         setConnecting(false);
@@ -474,6 +487,28 @@ function App(){
                     <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:26,color:s.color}}>{s.value.toLocaleString()}</div>
                     <div style={{color:"#444",fontSize:11,marginTop:4,fontWeight:600,letterSpacing:0.5}}>{s.label}</div>
                   </div>
+                ))}
+              </div>
+
+              {/* Likes card especial con animación */}
+              <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:14,
+                padding:"18px 20px",marginBottom:16,display:"flex",alignItems:"center",
+                justifyContent:"space-between",position:"relative",overflow:"hidden"}}>
+                <div style={{display:"flex",alignItems:"center",gap:14}}>
+                  <div className={likeAnim?"heart-pop":""} style={{fontSize:36,transition:"all 0.2s"}}>❤️</div>
+                  <div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:32,
+                      color:"#fe2c55",lineHeight:1}}>{stats.likes.toLocaleString()}</div>
+                    <div style={{color:"#555",fontSize:12,fontWeight:600,letterSpacing:0.5,marginTop:4}}>LIKES EN EL LIVE</div>
+                  </div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{color:"#333",fontSize:12}}>Por minuto</div>
+                  <div style={{color:"#fe2c55",fontWeight:700,fontSize:18}}>{connected?"activo":"--"}</div>
+                </div>
+                {/* Corazones flotantes */}
+                {floatingHearts.map(h=>(
+                  <span key={h.id} className="float-heart" style={{left:`${h.x}%`,bottom:10}}>❤️</span>
                 ))}
               </div>
 
