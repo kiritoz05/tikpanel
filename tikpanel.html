@@ -150,6 +150,11 @@ function App(){
   const [ttsOn,setTtsOn]=useState(true);
   const [ttsVoice,setTtsVoice]=useState(VOICES[0]);
   const [ttsVol,setTtsVol]=useState(80);
+  const ttsOnRef = useRef(true);
+  const ttsVolRef = useRef(80);
+
+  useEffect(()=>{ ttsOnRef.current = ttsOn; },[ttsOn]);
+  useEffect(()=>{ ttsVolRef.current = ttsVol; },[ttsVol]);
   const [alertsOn,setAlertsOn]=useState(true);
   const [sound,setSound]=useState(SOUNDS[0]);
   const [sidebarOpen,setSidebarOpen]=useState(false);
@@ -162,15 +167,45 @@ function App(){
       if(data.type === "chat"){
         setLog(p=>[{type:"msg", text:`💬 @${data.user}: ${data.comment}`},...p].slice(0,25));
         setStats(p=>({...p, messages: p.messages+1}));
+        // TTS para comentarios
+        if(ttsOnRef.current && window.speechSynthesis){
+          const msg = new SpeechSynthesisUtterance(`${data.user} dice: ${data.comment}`);
+          msg.lang = "es-MX";
+          msg.volume = ttsVolRef.current / 100;
+          msg.rate = 1.1;
+          window.speechSynthesis.speak(msg);
+        }
       } else if(data.type === "gift"){
         setLog(p=>[{type:"gift", text:`🎁 @${data.user} envió ${data.giftCount}x ${data.giftName}`},...p].slice(0,25));
         setStats(p=>({...p, gifts: p.gifts+1}));
+        // TTS para regalos
+        if(ttsOnRef.current && window.speechSynthesis){
+          const msg = new SpeechSynthesisUtterance(`${data.user} envió ${data.giftCount} ${data.giftName}`);
+          msg.lang = "es-MX";
+          msg.volume = ttsVolRef.current / 100;
+          window.speechSynthesis.speak(msg);
+        }
       } else if(data.type === "follow"){
         setLog(p=>[{type:"follow", text:`➕ @${data.user} te siguió`},...p].slice(0,25));
         setStats(p=>({...p, follows: p.follows+1}));
+        // TTS para seguidores
+        if(ttsOnRef.current && window.speechSynthesis){
+          const msg = new SpeechSynthesisUtterance(`${data.user} te siguió`);
+          msg.lang = "es-MX";
+          msg.volume = ttsVolRef.current / 100;
+          window.speechSynthesis.speak(msg);
+        }
       } else if(data.type === "like"){
         setLog(p=>[{type:"msg", text:`❤️ @${data.user} dio like`},...p].slice(0,25));
       }
+    });
+
+    socket.on("tts_audio", (data) => {
+      try {
+        const audio = new Audio(`data:audio/mpeg;base64,${data.audio}`);
+        audio.volume = ttsVolRef.current / 100;
+        audio.play();
+      } catch(e) { console.error("Audio error:", e); }
     });
 
     socket.on("viewers", (data) => {
@@ -472,10 +507,18 @@ function App(){
               </div>
               <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20}}>
                 <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,marginBottom:14}}>🎤 Probar TTS</div>
-                <input placeholder="Escribe un texto para probar..." disabled={!ttsOn}
+                <input id="ttsTest" placeholder="Escribe un texto para probar..." disabled={!ttsOn}
                   style={{width:"100%",background:"#0d0d15",border:"1px solid #2a2a3a",borderRadius:10,
                     padding:"12px 14px",color:"#fff",fontSize:14,outline:"none",marginBottom:12}}/>
-                <button disabled={!ttsOn}
+                <button disabled={!ttsOn} onClick={()=>{
+                  const text = document.getElementById("ttsTest").value || "Hola, esto es una prueba de TTS";
+                  const msg = new SpeechSynthesisUtterance(text);
+                  msg.lang = "es-MX";
+                  msg.volume = ttsVol / 100;
+                  msg.rate = 1.1;
+                  window.speechSynthesis.cancel();
+                  window.speechSynthesis.speak(msg);
+                }}
                   style={{background:ttsOn?"rgba(254,44,85,0.1)":"transparent",
                     border:"1px solid rgba(254,44,85,0.2)",borderRadius:10,
                     padding:"10px 20px",color:ttsOn?"#fe2c55":"#333",fontWeight:700,cursor:ttsOn?"pointer":"not-allowed",fontSize:13}}>
