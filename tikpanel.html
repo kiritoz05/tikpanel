@@ -216,6 +216,8 @@ function App(){
   const [alertsOn,setAlertsOn]=useState(true);
   const [sound,setSound]=useState(SOUNDS[0]);
   const [sidebarOpen,setSidebarOpen]=useState(false);
+  const [likeRanking, setLikeRanking]=useState([]);
+  const [tapRanking, setTapRanking]=useState([]);
 
   useEffect(()=>{
     // Conectar socket al servidor Railway
@@ -236,6 +238,18 @@ function App(){
       } else if(data.type === "gift"){
         setLog(p=>[{type:"gift", text:`🎁 @${data.user} envió ${data.giftCount}x ${data.giftName}`},...p].slice(0,25));
         setStats(p=>({...p, gifts: p.gifts+1}));
+        // Ranking tap tap (por diamantes)
+        setTapRanking(prev=>{
+          const diamonds = data.diamondCount || 1;
+          const existing = prev.find(u=>u.user===data.user);
+          let updated;
+          if(existing){
+            updated = prev.map(u=>u.user===data.user ? {...u, diamonds: u.diamonds+diamonds, gifts: u.gifts+1} : u);
+          } else {
+            updated = [...prev, {user:data.user, nickname:data.nickname||data.user, diamonds, gifts:1}];
+          }
+          return updated.sort((a,b)=>b.diamonds-a.diamonds).slice(0,5);
+        });
         // TTS para regalos
         if(ttsOnRef.current && window.speechSynthesis){
           const msg = new SpeechSynthesisUtterance(`${data.user} envió ${data.giftCount} ${data.giftName}`);
@@ -262,6 +276,17 @@ function App(){
         const id = Date.now();
         setFloatingHearts(p=>[...p, {id, x: Math.random()*60+20}]);
         setTimeout(()=>setFloatingHearts(p=>p.filter(h=>h.id!==id)), 1000);
+        // Ranking de likes
+        setLikeRanking(prev=>{
+          const existing = prev.find(u=>u.user===data.user);
+          let updated;
+          if(existing){
+            updated = prev.map(u=>u.user===data.user ? {...u, count: u.count+(data.likeCount||1)} : u);
+          } else {
+            updated = [...prev, {user:data.user, nickname:data.user, count:data.likeCount||1}];
+          }
+          return updated.sort((a,b)=>b.count-a.count).slice(0,5);
+        });
       }
     });
 
@@ -339,6 +364,7 @@ function App(){
     {id:"tts",icon:"🔊",label:"TTS"},
     {id:"alerts",icon:"🔔",label:"Alertas"},
     {id:"chat",icon:"💬",label:"Chat Bot"},
+    {id:"ranking",icon:"🏆",label:"Ranking"},
   ];
 
   const logColor={
@@ -743,6 +769,89 @@ function App(){
                   + Añadir comando
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* RANKING */}
+          {tab==="ranking"&&(
+            <div className="animate-in">
+
+              {/* Top Tap Tap */}
+              <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20,marginBottom:16}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14}}>🎁 Top Tap Tap (Regalos)</div>
+                  <div style={{fontSize:11,color:"#555",fontWeight:600}}>Por diamantes 💎</div>
+                </div>
+                {tapRanking.length===0?(
+                  <div style={{textAlign:"center",padding:"30px 0",color:"#333",fontSize:13}}>
+                    {connected?"Esperando regalos...":"Conecta tu LIVE para ver el ranking"}
+                  </div>
+                ):tapRanking.map((item,i)=>{
+                  const medals=["🥇","🥈","🥉","4️⃣","5️⃣"];
+                  const colors=["#ffd700","#aaa","#cd7f32","#666","#555"];
+                  const maxDiamonds=tapRanking[0]?.diamonds||1;
+                  const pct=Math.round((item.diamonds/maxDiamonds)*100);
+                  return(
+                    <div key={item.user} style={{marginBottom:14}}>
+                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+                        <span style={{fontSize:20,flexShrink:0}}>{medals[i]}</span>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <span style={{color:"#fff",fontSize:13,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>@{item.nickname}</span>
+                            <span style={{color:colors[i],fontWeight:800,fontSize:13,flexShrink:0,marginLeft:8}}>💎 {item.diamonds.toLocaleString()}</span>
+                          </div>
+                          <div style={{height:6,background:"#1a1a2a",borderRadius:3,marginTop:6,overflow:"hidden"}}>
+                            <div style={{height:"100%",width:`${pct}%`,borderRadius:3,transition:"width 0.5s ease",
+                              background:i===0?"linear-gradient(90deg,#ffd700,#ffaa00)":i===1?"linear-gradient(90deg,#aaa,#888)":i===2?"linear-gradient(90deg,#cd7f32,#a0522d)":"#2a2a3a"}}/>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Top Likes */}
+              <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14}}>❤️ Top Likes del LIVE</div>
+                  <div style={{fontSize:11,color:"#555",fontWeight:600}}>Tiempo real</div>
+                </div>
+                {likeRanking.length===0?(
+                  <div style={{textAlign:"center",padding:"30px 0",color:"#333",fontSize:13}}>
+                    {connected?"Esperando likes...":"Conecta tu LIVE para ver el ranking"}
+                  </div>
+                ):likeRanking.map((item,i)=>{
+                  const medals=["🥇","🥈","🥉","4️⃣","5️⃣"];
+                  const maxLikes=likeRanking[0]?.count||1;
+                  const pct=Math.round((item.count/maxLikes)*100);
+                  return(
+                    <div key={item.user} style={{marginBottom:14}}>
+                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+                        <span style={{fontSize:20,flexShrink:0}}>{medals[i]}</span>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <span style={{color:"#fff",fontSize:13,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>@{item.nickname}</span>
+                            <span style={{color:"#fe2c55",fontWeight:800,fontSize:13,flexShrink:0,marginLeft:8}}>❤️ {item.count.toLocaleString()}</span>
+                          </div>
+                          <div style={{height:6,background:"#1a1a2a",borderRadius:3,marginTop:6,overflow:"hidden"}}>
+                            <div style={{height:"100%",width:`${pct}%`,borderRadius:3,
+                              background:"linear-gradient(90deg,#fe2c55,#ff6b81)",transition:"width 0.5s ease"}}/>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {likeRanking.length>0&&(
+                  <div style={{borderTop:"1px solid #1a1a2a",paddingTop:14,marginTop:4,
+                    display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{color:"#555",fontSize:12}}>Total likes del LIVE</span>
+                    <span style={{color:"#fe2c55",fontWeight:800,fontSize:18}}>{stats.likes.toLocaleString()} ❤️</span>
+                  </div>
+                )}
+              </div>
+
             </div>
           )}
 
