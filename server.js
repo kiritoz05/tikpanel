@@ -13,6 +13,13 @@ let CURRENT_VOICE_ID = "cgSgspJ2msm6clMCkdW9"; // Voz activa, cambia dinámicame
 
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] },
+  // Permite polling + WebSocket para máxima compatibilidad con Railway
+  transports: ["polling", "websocket"],
+  // Mantiene la conexión viva aunque Railway duerma el proceso
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  // Sin compresión para latencia mínima
+  perMessageDeflate: false,
 });
 
 app.use(cors());
@@ -51,6 +58,11 @@ async function textToSpeech(text) {
 
 app.get("/", (req, res) => {
   res.json({ status: "TikPanel Server activo ✅", connections: Object.keys(activeConnections).length });
+});
+
+// Health check para que Railway / UptimeRobot mantenga el servidor despierto
+app.get("/health", (req, res) => {
+  res.json({ ok: true, uptime: process.uptime(), connections: Object.keys(activeConnections).length });
 });
 
 app.post("/connect", async (req, res) => {
@@ -145,7 +157,13 @@ app.post("/connect", async (req, res) => {
 
     // LIKES y ESPECTADORES
     tiktokLive.on("like", (data) => {
-      io.emit("event", { type: "like", user: data.uniqueId, likeCount: data.likeCount, timestamp: Date.now() });
+      io.emit("event", {
+        type: "like",
+        user: data.uniqueId,
+        nickname: data.nickname || data.uniqueId,
+        likeCount: data.likeCount || 1,
+        timestamp: Date.now()
+      });
     });
     tiktokLive.on("roomUser", (data) => {
       io.emit("viewers", { count: data.viewerCount });

@@ -184,17 +184,23 @@ function App(){
   useEffect(()=>{ ttsOnRef.current = ttsOn; },[ttsOn]);
   useEffect(()=>{ ttsVolRef.current = ttsVol; },[ttsVol]);
 
-  const applyVoice = () => {
+  const applyVoice = async () => {
     activeVoiceRef.current = ttsVoice;
     setActiveVoice(ttsVoice);
     setVoiceApplied(true);
     setTimeout(()=>setVoiceApplied(false), 2000);
-    // Notificar al servidor la nueva voz
-    fetch(`${SERVER_URL}/setvoice`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ voiceId: ttsVoice })
-    }).catch(()=>{});
+    // Notificar al servidor la nueva voz (para TTS de eventos reales)
+    try {
+      const res = await fetch(`${SERVER_URL}/setvoice`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ voiceId: ttsVoice })
+      });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch(e) {
+      // La voz se aplica localmente de todas formas
+      console.warn("No se pudo sincronizar la voz con el servidor:", e.message);
+    }
   };
 
   // Cargar voces desde ElevenLabs
@@ -221,7 +227,26 @@ function App(){
 
   useEffect(()=>{
     // Conectar socket al servidor Railway
-    const socket = io(SERVER_URL, { transports: ["websocket"] });
+    // transports: polling primero para que funcione en Railway/Vercel,
+    // luego upgradea a WebSocket automáticamente
+    const socket = io(SERVER_URL, {
+      transports: ["polling", "websocket"],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1500,
+      reconnectionDelayMax: 10000,
+      timeout: 20000,
+    });
+
+    socket.on("connect", () => {
+      setLog(p=>[{type:"sys", text:"✅ Panel conectado al servidor"},...p].slice(0,25));
+    });
+    socket.on("connect_error", (err) => {
+      setLog(p=>[{type:"sys", text:`⚠️ Sin conexión al servidor: ${err.message}`},...p].slice(0,25));
+    });
+    socket.on("reconnect", (attempt) => {
+      setLog(p=>[{type:"sys", text:`🔄 Reconectado (intento ${attempt})`},...p].slice(0,25));
+    });
 
     socket.on("event", (data) => {
       if(data.type === "chat"){
@@ -283,7 +308,7 @@ function App(){
           if(existing){
             updated = prev.map(u=>u.user===data.user ? {...u, count: u.count+(data.likeCount||1)} : u);
           } else {
-            updated = [...prev, {user:data.user, nickname:data.user, count:data.likeCount||1}];
+            updated = [...prev, {user:data.user, nickname:data.nickname||data.user, count:data.likeCount||1}];
           }
           return updated.sort((a,b)=>b.count-a.count).slice(0,5);
         });
@@ -294,11 +319,25 @@ function App(){
       setLog(p=>[{type:"gift", text:`🎁 ALERTA: ${data.message}`},...p].slice(0,25));
     });
 
+    // Cola de audio para evitar que se solapen y manejar autoplay policy
+    const audioQueue = [];
+    let audioPlaying = false;
+    function playNextAudio() {
+      if(audioPlaying || audioQueue.length === 0) return;
+      audioPlaying = true;
+      const src = audioQueue.shift();
+      const audio = new Audio(src);
+      audio.volume = ttsVolRef.current / 100;
+      audio.onended = () => { audioPlaying = false; playNextAudio(); };
+      audio.onerror = () => { audioPlaying = false; playNextAudio(); };
+      audio.play().catch(() => { audioPlaying = false; playNextAudio(); });
+    }
+
     socket.on("tts_audio", (data) => {
       try {
-        const audio = new Audio(`data:audio/mpeg;base64,${data.audio}`);
-        audio.volume = ttsVolRef.current / 100;
-        audio.play();
+        if(!ttsOnRef.current) return;
+        audioQueue.push(`data:audio/mpeg;base64,${data.audio}`);
+        playNextAudio();
       } catch(e) { console.error("Audio error:", e); }
     });
 
@@ -336,7 +375,10 @@ function App(){
       const data = await res.json();
       if(data.success){
         setConnecting(false); setConnected(true);
+        // Reset completo de todos los datos al iniciar un nuevo LIVE
         setStats({viewers:0,gifts:0,follows:0,messages:0,likes:0});
+        setTapRanking([]);
+        setLikeRanking([]);
         setLog([{type:"sys", text:`✅ Conectado a @${tiktokUser} — esperando actividad del LIVE`}]);
       } else {
         setConnecting(false);
