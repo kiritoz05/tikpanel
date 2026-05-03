@@ -225,6 +225,125 @@ function App(){
   const [likeRanking, setLikeRanking]=useState([]);
   const [tapRanking, setTapRanking]=useState([]);
 
+  // ── Gift Sounds ──────────────────────────────────────────────
+  const GIFT_DEFS = [
+    {id:"rose",     emoji:"🌹", name:"Rosa",         diamonds:1},
+    {id:"heart",    emoji:"💝", name:"Corazón",       diamonds:5},
+    {id:"icecream", emoji:"🍦", name:"Helado",        diamonds:10},
+    {id:"perfume",  emoji:"🌸", name:"Perfume",       diamonds:20},
+    {id:"diamond",  emoji:"💎", name:"Diamante",      diamonds:50},
+    {id:"car",      emoji:"🚗", name:"Carro",         diamonds:100},
+    {id:"rocket",   emoji:"🚀", name:"Cohete",        diamonds:200},
+    {id:"crown",    emoji:"👑", name:"Corona",        diamonds:300},
+    {id:"lion",     emoji:"🦁", name:"León",          diamonds:500},
+    {id:"castle",   emoji:"🏰", name:"Castillo",      diamonds:750},
+    {id:"universe", emoji:"🌌", name:"Universo",      diamonds:1000},
+    {id:"other",    emoji:"🎁", name:"Cualquier otro",diamonds:0},
+  ];
+  const GIFT_MAP = [
+    {id:"rose",     kw:["rosa","rose","flor"]},
+    {id:"heart",    kw:["corazon","heart","amor","hearts"]},
+    {id:"icecream", kw:["helado","ice","cream"]},
+    {id:"perfume",  kw:["perfume","blossom","flower"]},
+    {id:"diamond",  kw:["diamante","diamond"]},
+    {id:"car",      kw:["carro","car","sport","lambo","ferrari"]},
+    {id:"rocket",   kw:["cohete","rocket"]},
+    {id:"crown",    kw:["corona","crown"]},
+    {id:"lion",     kw:["leon","lion"]},
+    {id:"castle",   kw:["castillo","castle","palace"]},
+    {id:"universe", kw:["universo","universe","galaxy","galaxia"]},
+  ];
+
+  const initGiftSounds = () => {
+    const s={};
+    GIFT_DEFS.forEach(g=>{ s[g.id]={enabled:true,volume:80,audioData:null,fileName:null}; });
+    return s;
+  };
+  const [giftSounds, setGiftSounds]=useState(initGiftSounds);
+  const [giftMasterVol, setGiftMasterVol]=useState(80);
+  const [giftTestingId, setGiftTestingId]=useState(null);
+  const giftSoundsRef = useRef(initGiftSounds());
+  const giftMasterVolRef = useRef(80);
+  const giftAudioQueue = useRef([]);
+  const giftPlaying = useRef(false);
+
+  useEffect(()=>{ giftSoundsRef.current = giftSounds; },[giftSounds]);
+  useEffect(()=>{ giftMasterVolRef.current = giftMasterVol; },[giftMasterVol]);
+
+  function resolveGiftId(name){
+    const n=(name||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+    for(const m of GIFT_MAP){ if(m.kw.some(k=>n.includes(k))) return m.id; }
+    return "other";
+  }
+
+  function playGiftAudio(audioData, volume){
+    const masterV = giftMasterVolRef.current;
+    const eff = Math.min(1,(masterV/100)*(volume/100));
+    const audio = new Audio(audioData);
+    audio.volume = eff;
+    return audio;
+  }
+
+  function enqueueGiftSound(giftName){
+    const id = resolveGiftId(giftName);
+    const s = giftSoundsRef.current;
+    const entry = s[id]?.enabled && s[id]?.audioData ? s[id]
+                : s.other?.enabled && s.other?.audioData ? s.other : null;
+    if(!entry) return;
+    giftAudioQueue.current.push({audioData:entry.audioData, volume:entry.volume});
+    if(!giftPlaying.current) drainGiftQueue();
+  }
+
+  function drainGiftQueue(){
+    if(giftAudioQueue.current.length===0){ giftPlaying.current=false; return; }
+    giftPlaying.current=true;
+    const {audioData,volume}=giftAudioQueue.current.shift();
+    const audio=playGiftAudio(audioData,volume);
+    audio.onended=()=>drainGiftQueue();
+    audio.onerror=()=>drainGiftQueue();
+    audio.play().catch(()=>drainGiftQueue());
+  }
+
+  function loadGiftFile(id, file){
+    if(!file||!file.type.startsWith("audio/")) return;
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+      setGiftSounds(prev=>{
+        const next={...prev,[id]:{...prev[id],audioData:e.target.result,fileName:file.name}};
+        giftSoundsRef.current=next;
+        return next;
+      });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function removeGiftSound(id){
+    setGiftSounds(prev=>{
+      const next={...prev,[id]:{...prev[id],audioData:null,fileName:null}};
+      giftSoundsRef.current=next;
+      return next;
+    });
+  }
+
+  function previewGiftSound(id){
+    const s=giftSoundsRef.current[id];
+    if(!s?.audioData) return;
+    setGiftTestingId(id);
+    const audio=playGiftAudio(s.audioData,s.volume);
+    audio.onended=()=>setGiftTestingId(null);
+    audio.onerror=()=>setGiftTestingId(null);
+    audio.play().catch(()=>setGiftTestingId(null));
+  }
+
+  function setGiftVol(id,val){
+    setGiftSounds(prev=>{
+      const next={...prev,[id]:{...prev[id],volume:parseInt(val)}};
+      giftSoundsRef.current=next;
+      return next;
+    });
+  }
+  // ─────────────────────────────────────────────────────────────
+
   useEffect(()=>{
     // Conectar socket al servidor Railway
     // transports: polling primero para que funcione en Railway/Vercel,
@@ -263,6 +382,9 @@ function App(){
       } else if(data.type === "gift"){
         setLog(p=>[{type:"gift", text:`🎁 @${data.user} envió ${data.giftCount}x ${data.giftName}`},...p].slice(0,25));
         setStats(p=>({...p, gifts: p.gifts+1}));
+        // ── Gift sound alert ──────────────────────────────────
+        enqueueGiftSound(data.giftName);
+        // ─────────────────────────────────────────────────────
         // Ranking tap tap (por diamantes)
         setTapRanking(prev=>{
           const diamonds = data.diamondCount || 1;
@@ -407,6 +529,7 @@ function App(){
     {id:"alerts",icon:"🔔",label:"Alertas"},
     {id:"chat",icon:"💬",label:"Chat Bot"},
     {id:"ranking",icon:"🏆",label:"Ranking"},
+    {id:"giftsounds",icon:"🎵",label:"Gift Sounds"},
   ];
 
   const logColor={
@@ -892,6 +1015,173 @@ function App(){
                     <span style={{color:"#fe2c55",fontWeight:800,fontSize:18}}>{stats.likes.toLocaleString()} ❤️</span>
                   </div>
                 )}
+              </div>
+
+            </div>
+          )}
+
+        {/* GIFT SOUNDS */}
+          {tab==="giftsounds"&&(
+            <div className="animate-in">
+
+              {/* Header + master vol */}
+              <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,
+                padding:20,marginBottom:16,display:"flex",alignItems:"center",
+                justifyContent:"space-between",gap:16,flexWrap:"wrap"}}>
+                <div>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,marginBottom:4}}>
+                    🎵 Gift Sound Alerts
+                  </div>
+                  <div style={{color:"#666",fontSize:12,lineHeight:1.5}}>
+                    Sube un MP3/WAV para cada regalo. Suena automáticamente cuando llega en el LIVE.
+                  </div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:12,minWidth:200}}>
+                  <span style={{fontSize:18}}>🔊</span>
+                  <div style={{flex:1}}>
+                    <div style={{color:"#666",fontSize:10,fontWeight:700,letterSpacing:1,
+                      textTransform:"uppercase",marginBottom:6}}>Volumen general</div>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <input type="range" min="0" max="100" value={giftMasterVol}
+                        onChange={e=>setGiftMasterVol(parseInt(e.target.value))}
+                        style={{flex:1,accentColor:"#fe2c55",cursor:"pointer"}}/>
+                      <span style={{color:"#fe2c55",fontSize:12,fontWeight:700,
+                        fontFamily:"monospace",minWidth:34}}>{giftMasterVol}%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cards grid */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
+                {GIFT_DEFS.map(gift=>{
+                  const s=giftSounds[gift.id];
+                  const isTesting=giftTestingId===gift.id;
+                  return(
+                    <div key={gift.id} style={{
+                      background:"#13131a",
+                      border:`1px solid ${s.audioData ? "rgba(254,44,85,0.4)" : "#1e1e2e"}`,
+                      borderRadius:16,padding:16,
+                      transition:"border-color 0.2s, transform 0.15s",
+                      transform:isTesting?"scale(1.02)":"scale(1)",
+                      position:"relative",overflow:"hidden"
+                    }}>
+                      {/* Glow cuando testing */}
+                      {isTesting&&(
+                        <div style={{position:"absolute",inset:0,borderRadius:16,
+                          background:"rgba(37,244,238,0.04)",pointerEvents:"none"}}/>
+                      )}
+
+                      {/* Top row */}
+                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                        <span style={{fontSize:28,lineHeight:1}}>{gift.emoji}</span>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,
+                            whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                            {gift.name}
+                          </div>
+                          <div style={{fontSize:11,color:"#444",fontFamily:"monospace"}}>
+                            {gift.diamonds>0 ? `💎 ${gift.diamonds} diamantes` : "fallback — otros regalos"}
+                          </div>
+                        </div>
+                        {/* Toggle */}
+                        <Toggle on={s.enabled} onChange={()=>{
+                          setGiftSounds(prev=>{
+                            const next={...prev,[gift.id]:{...prev[gift.id],enabled:!prev[gift.id].enabled}};
+                            giftSoundsRef.current=next; return next;
+                          });
+                        }}/>
+                      </div>
+
+                      {/* Drop zone o archivo cargado */}
+                      {!s.audioData ? (
+                        <label style={{display:"block",cursor:"pointer",position:"relative"}}>
+                          <input type="file" accept="audio/*" style={{display:"none"}}
+                            onChange={e=>loadGiftFile(gift.id, e.target.files[0])}/>
+                          <div style={{
+                            background:"#0d0d15",
+                            border:"1.5px dashed #2a2a3a",
+                            borderRadius:10,padding:"14px 12px",
+                            display:"flex",alignItems:"center",gap:10,
+                            transition:"border-color 0.15s"
+                          }}>
+                            <span style={{fontSize:20}}>🎵</span>
+                            <div>
+                              <div style={{fontSize:12,fontWeight:600,color:"#444",marginBottom:2}}>
+                                Subir sonido
+                              </div>
+                              <div style={{fontSize:11,color:"#333"}}>MP3 · WAV · OGG</div>
+                            </div>
+                          </div>
+                        </label>
+                      ) : (
+                        <div style={{
+                          background:"rgba(254,44,85,0.06)",
+                          border:"1px solid rgba(254,44,85,0.2)",
+                          borderRadius:10,padding:"10px 12px",
+                          display:"flex",alignItems:"center",gap:8
+                        }}>
+                          {/* Mini visualizador */}
+                          <div style={{display:"flex",alignItems:"flex-end",gap:2,height:18,flexShrink:0}}>
+                            {[0,1,2,3,4].map(i=>(
+                              <div key={i} style={{
+                                width:3,borderRadius:2,
+                                background:isTesting?"#25f4ee":"#fe2c55",
+                                height: isTesting ? `${Math.random()*14+4}px` : "4px",
+                                transition:"height 0.1s",
+                                animation:isTesting?`none`:undefined
+                              }}/>
+                            ))}
+                          </div>
+                          <span style={{flex:1,fontSize:11,fontFamily:"monospace",
+                            color:"#aaa",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                            {s.fileName}
+                          </span>
+                          <button onClick={()=>previewGiftSound(gift.id)}
+                            style={{width:28,height:28,borderRadius:7,border:"1px solid #2a2a3a",
+                              background:isTesting?"rgba(37,244,238,0.15)":"#1a1a2a",
+                              color:isTesting?"#25f4ee":"#fff",cursor:"pointer",
+                              fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",
+                              flexShrink:0}}>
+                            {isTesting?"⏸":"▶"}
+                          </button>
+                          <button onClick={()=>removeGiftSound(gift.id)}
+                            style={{width:28,height:28,borderRadius:7,border:"1px solid #2a2a3a",
+                              background:"#1a1a2a",color:"#555",cursor:"pointer",
+                              fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",
+                              flexShrink:0}}>
+                            ✕
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Volumen individual — solo si hay audio */}
+                      {s.audioData&&(
+                        <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10}}>
+                          <span style={{fontSize:11,color:"#444",minWidth:52,fontWeight:600}}>Volumen</span>
+                          <input type="range" min="0" max="100" value={s.volume}
+                            onChange={e=>setGiftVol(gift.id,e.target.value)}
+                            style={{flex:1,accentColor:"#fe2c55",cursor:"pointer"}}/>
+                          <span style={{fontSize:11,fontFamily:"monospace",color:"#fe2c55",minWidth:32,textAlign:"right"}}>
+                            {s.volume}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Info de integración */}
+              <div style={{background:"rgba(37,244,238,0.05)",border:"1px solid rgba(37,244,238,0.15)",
+                borderRadius:12,padding:"14px 16px",marginTop:16,
+                display:"flex",alignItems:"flex-start",gap:12}}>
+                <span style={{fontSize:20,flexShrink:0}}>💡</span>
+                <div style={{fontSize:12,color:"#666",lineHeight:1.7}}>
+                  Los sonidos se activan automáticamente cuando alguien manda un regalo en tu LIVE.
+                  El sistema detecta el nombre del regalo y reproduce el audio asignado.
+                  Si no hay sonido para ese regalo específico, usa el de <strong style={{color:"#aaa"}}>🎁 Cualquier otro</strong> como fallback.
+                </div>
               </div>
 
             </div>
