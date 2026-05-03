@@ -489,7 +489,8 @@ function App() {
   const [totLike,setTotLike]= useState(() => ld("totLike", 0));
   const [tapR,   setTapR]   = useState(() => ld("tapR", []));
   const [likeR,  setLikeR]  = useState(() => ld("likeR", []));
-  const [viewR,  setViewR]  = useState(() => ld("viewR", [])); // ranking espectadores
+  const [viewR,  setViewR]  = useState(() => ld("viewR", [])); // historial de entradas
+  const [topViewers, setTopViewers] = useState([]); // espectadores activos ahora
 
   // TTS settings
   const [ttsMode,  setTtsMode]  = useState(() => ld("ttsMode", "native"));   // "native" | "elevenlabs"
@@ -679,15 +680,24 @@ function App() {
       }
     });
 
-    sock.on("viewers", d => setStats(p=>({...p, viewers:d.count})));
+    sock.on("viewers", d => {
+      setStats(p=>({...p, viewers:d.count||0}));
+      // topViewers = lista de espectadores activos ahora
+      if (Array.isArray(d.topViewers) && d.topViewers.length > 0) {
+        setTopViewers(d.topViewers);
+      }
+    });
     sock.on("member", d => {
-      // alguien entró al live — actualizar ranking de espectadores
       if (!d.user) return;
+      // Agregar al historial de quienes entraron
       setViewR(prev => {
         const ex = prev.find(u => u.user === d.user);
-        if (ex) return prev; // ya está, no duplicar
-        const upd = [...prev, {user:d.user, nickname:d.nickname||d.user, joinTime:d.timestamp||Date.now()}];
-        return upd.slice(0, 200); // guardar hasta 200
+        if (ex) {
+          // actualizar timestamp
+          return prev.map(u => u.user===d.user ? {...u, joinTime:d.timestamp||Date.now()} : u);
+        }
+        const upd = [{user:d.user, nickname:d.nickname||d.user, joinTime:d.timestamp||Date.now()}, ...prev];
+        return upd.slice(0, 300);
       });
     });
     sock.on("battle", d => {
@@ -1482,10 +1492,12 @@ function App() {
                               </div>
                               <div style={{textAlign:"right"}}>
                                 <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,
-                                  fontSize:22,color:c,lineHeight:1}}>
+                                  fontSize:26,color:c,lineHeight:1}}>
                                   {team.points.toLocaleString()}
                                 </div>
-                                <div style={{fontSize:9,color:"#444",fontWeight:600}}>puntos</div>
+                                <div style={{fontSize:9,color:team.points>0?"#25f4ee":"#444",fontWeight:600}}>
+                                  {team.points>0?"puntos":"sin puntos aún"}
+                                </div>
                               </div>
                             </div>
                             {/* Barra individual */}
@@ -1526,77 +1538,114 @@ function App() {
                 padding:14,marginBottom:12,display:"flex",alignItems:"center",gap:14}}>
                 <div style={{fontSize:28}}>👁️</div>
                 <div>
-                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:28,
+                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:32,
                     color:"#25f4ee",lineHeight:1}}>{stats.viewers.toLocaleString()}</div>
-                  <div style={{color:"#444",fontSize:9,fontWeight:700,marginTop:2,letterSpacing:.5}}>
+                  <div style={{color:"#444",fontSize:9,fontWeight:700,marginTop:3,letterSpacing:.5}}>
                     ESPECTADORES AHORA
                   </div>
                 </div>
                 <div style={{marginLeft:"auto",textAlign:"right"}}>
-                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,color:"#fff"}}>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,color:"#fff"}}>
                     {viewR.length.toLocaleString()}
                   </div>
                   <div style={{color:"#444",fontSize:9,fontWeight:600}}>entraron al live</div>
                 </div>
               </div>
 
-              {/* Lista de espectadores */}
-              <div style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:14,overflow:"hidden"}}>
-                <div style={{background:"#0d0d18",borderBottom:"1px solid #1e1e2e",
-                  padding:"8px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{color:"#363655",fontSize:9,fontWeight:700,letterSpacing:.8,textTransform:"uppercase"}}>
-                    👤 Espectadores que entraron al live
-                  </span>
-                  {viewR.length > 0 && (
-                    <button onClick={()=>{setViewR([]);sv("viewR",[]);}}
-                      style={{background:"transparent",border:"1px solid #252535",borderRadius:5,
-                        padding:"2px 8px",color:"#555",fontSize:9,cursor:"pointer"}}>
-                      Limpiar
-                    </button>
-                  )}
-                </div>
+              {/* Tabs: Activos ahora vs Historial */}
+              {(() => {
+                const [vTab, setVTab] = React.useState("historial");
+                const listToShow = vTab === "activos" ? topViewers : viewR;
+                return (
+                  <div>
+                    {/* Sub-tabs */}
+                    <div style={{display:"flex",gap:6,marginBottom:10}}>
+                      {[
+                        {id:"activos",   label:`👁 Activos ahora (${topViewers.length})`, note:"desde roomUser"},
+                        {id:"historial", label:`📋 Entradas (${viewR.length})`,           note:"quienes entraron"},
+                      ].map(t => (
+                        <button key={t.id} onClick={()=>setVTab(t.id)}
+                          style={{flex:1,background:vTab===t.id?"rgba(37,244,238,.1)":"transparent",
+                            border:`1px solid ${vTab===t.id?"rgba(37,244,238,.3)":"#1e1e2e"}`,
+                            borderRadius:8,padding:"7px 6px",
+                            color:vTab===t.id?"#25f4ee":"#555",
+                            fontWeight:vTab===t.id?700:500,fontSize:10,cursor:"pointer"}}>
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
 
-                {!conn ? (
-                  <div style={{textAlign:"center",padding:"30px 16px",color:"#333",fontSize:11}}>
-                    Conecta tu LIVE para ver espectadores
-                  </div>
-                ) : viewR.length === 0 ? (
-                  <div style={{textAlign:"center",padding:"30px 16px",color:"#444",fontSize:11}}>
-                    <div style={{fontSize:28,marginBottom:8}}>👁️</div>
-                    Esperando que entren espectadores...
-                  </div>
-                ) : (
-                  <div style={{maxHeight:460,overflowY:"auto"}}>
-                    {[...viewR].reverse().map((item, i) => (
-                      <div key={item.user} style={{display:"flex",alignItems:"center",gap:10,
-                        padding:"8px 12px",borderBottom:"1px solid #0f0f1a",
-                        transition:"background .1s"}}
-                        onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,.013)"}
-                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                        {/* Avatar */}
-                        <div style={{width:28,height:28,borderRadius:"50%",flexShrink:0,
-                          background:"linear-gradient(135deg,#1e1e2e,#2a2a3a)",
-                          display:"flex",alignItems:"center",justifyContent:"center",
-                          fontSize:11,fontWeight:800,color:"#555"}}>
-                          {(item.nickname||"?")[0].toUpperCase()}
-                        </div>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontSize:12,fontWeight:700,color:"#fff",
-                            overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                            @{item.nickname}
-                          </div>
-                          {item.joinTime && (
-                            <div style={{fontSize:9,color:"#444",marginTop:1}}>
-                              Entró: {new Date(item.joinTime).toLocaleTimeString()}
-                            </div>
-                          )}
-                        </div>
-                        <div style={{fontSize:9,color:"#333",flexShrink:0}}>#{viewR.length - i}</div>
+                    {/* Lista */}
+                    <div style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:14,overflow:"hidden"}}>
+                      <div style={{background:"#0d0d18",borderBottom:"1px solid #1e1e2e",
+                        padding:"8px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <span style={{color:"#363655",fontSize:9,fontWeight:700,letterSpacing:.8,textTransform:"uppercase"}}>
+                          {vTab==="activos" ? "👁️ Espectadores activos" : "📋 Historial de entradas"}
+                        </span>
+                        {vTab==="historial" && viewR.length > 0 && (
+                          <button onClick={()=>{setViewR([]);sv("viewR",[]);}}
+                            style={{background:"transparent",border:"1px solid #252535",borderRadius:5,
+                              padding:"2px 8px",color:"#555",fontSize:9,cursor:"pointer"}}>
+                            Limpiar
+                          </button>
+                        )}
                       </div>
-                    ))}
+
+                      {!conn ? (
+                        <div style={{textAlign:"center",padding:"30px 16px",color:"#333",fontSize:11}}>
+                          Conecta tu LIVE para ver espectadores
+                        </div>
+                      ) : listToShow.length === 0 ? (
+                        <div style={{textAlign:"center",padding:"30px 16px",color:"#444",fontSize:11}}>
+                          <div style={{fontSize:28,marginBottom:8}}>👁️</div>
+                          {vTab==="activos"
+                            ? "Los espectadores activos se actualizan con roomUser..."
+                            : "Esperando que entren espectadores..."}
+                        </div>
+                      ) : (
+                        <div style={{maxHeight:440,overflowY:"auto"}}>
+                          {listToShow.map((item, i) => (
+                            <div key={item.user||i} style={{display:"flex",alignItems:"center",gap:10,
+                              padding:"9px 12px",borderBottom:"1px solid #0f0f1a"}}>
+                              {/* Rank / Avatar */}
+                              <div style={{width:30,height:30,borderRadius:"50%",flexShrink:0,
+                                background:i===0?"linear-gradient(135deg,#ffd700,#ffaa00)":
+                                           i===1?"linear-gradient(135deg,#ccc,#888)":
+                                           i===2?"linear-gradient(135deg,#cd7f32,#a0522d)":
+                                           "linear-gradient(135deg,#1e1e2e,#2a2a3a)",
+                                display:"flex",alignItems:"center",justifyContent:"center",
+                                fontSize:i<3?14:11,fontWeight:800,
+                                color:i<3?"#000":"#555"}}>
+                                {i===0?"🥇":i===1?"🥈":i===2?"🥉":(item.nickname||"?")[0].toUpperCase()}
+                              </div>
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{fontSize:12,fontWeight:700,color:"#fff",
+                                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                                  @{item.nickname}
+                                </div>
+                                {item.joinTime && (
+                                  <div style={{fontSize:9,color:"#444",marginTop:1}}>
+                                    {new Date(item.joinTime).toLocaleTimeString()}
+                                  </div>
+                                )}
+                                {item.viewers > 0 && (
+                                  <div style={{fontSize:9,color:"#25f4ee",marginTop:1}}>
+                                    👁 {item.viewers.toLocaleString()} viewers
+                                  </div>
+                                )}
+                              </div>
+                              <div style={{fontSize:10,color:"#333",flexShrink:0,
+                                fontFamily:"'JetBrains Mono',monospace"}}>
+                                #{i+1}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
+                );
+              })()}
             </div>
           )}
         </div>{/* /contenido */}

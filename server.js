@@ -36,32 +36,53 @@ function normalizeBattleUser(u) {
   return { hostName, hostNickname, points };
 }
 
-// Intentar extraer equipos de CUALQUIER estructura que mande el conector
+// Extraer equipos — estructura real del conector tiktok-live-connector:
+// linkMicArmies -> data.battleArmies = [{hostUserId, points, participants:[{userId,nickname,...}]}]
+// linkMicBattle -> data.battleUsers  = [{uniqueId, nickname, battleScore}]
 function extractTeams(data) {
-  // Candidatos de array de usuarios/equipos en orden de prioridad
-  const candidates = [
-    data.battleUsers,
-    data.battleItems,
-    data.users,
-    data.armies,
-    data.items,
-    data.teams,
-  ].filter(Array.isArray);
 
+  // ── CASO 1: linkMicArmies (tick por segundo, estructura más común) ────
+  // data.battleArmies = [{ hostUserId, points, participants:[{userId,nickname}] }]
+  if (Array.isArray(data.battleArmies) && data.battleArmies.length > 0) {
+    return data.battleArmies.map(army => {
+      const pts = Number(army.points || army.teamPoints || army.score || 0);
+      // El nickname del host puede estar en participants[0] si es el primer participante
+      // o en army.hostUser si existe
+      let hostName     = army.hostUserId || army.hostId || "?";
+      let hostNickname = hostName;
+      if (army.hostUser) {
+        hostName     = army.hostUser.uniqueId     || army.hostUser.userId    || hostName;
+        hostNickname = army.hostUser.nickname     || army.hostUser.name      || hostName;
+      } else if (Array.isArray(army.participants) && army.participants.length > 0) {
+        // El primer participante suele ser el host/dueño del equipo
+        const p = army.participants[0];
+        hostNickname = p.nickname || p.displayName || p.name || hostNickname;
+        if (p.uniqueId) hostName = p.uniqueId;
+      }
+      return { hostName, hostNickname, points: pts };
+    }).filter(t => t.hostName !== "?");
+  }
+
+  // ── CASO 2: linkMicBattle (evento inicial) ────────────────────────────
+  // data.battleUsers = [{ uniqueId, nickname, battleScore }]
+  if (Array.isArray(data.battleUsers) && data.battleUsers.length > 0) {
+    return data.battleUsers.map(u => ({
+      hostName:     u.uniqueId   || u.displayId || u.userId || "?",
+      hostNickname: u.nickname   || u.displayName || u.uniqueId || "?",
+      points:       Number(u.battleScore || u.score || u.points || 0),
+    })).filter(t => t.hostName !== "?");
+  }
+
+  // ── CASO 3: fallback genérico ─────────────────────────────────────────
+  const candidates = [data.battleItems, data.users, data.armies, data.items, data.teams].filter(Array.isArray);
   for (const arr of candidates) {
     const teams = arr.map(item => {
-      // El usuario puede estar anidado en hostUser / host / user o ser el item mismo
       const u = item.hostUser || item.host || item.user || item;
       const base = normalizeBattleUser(u);
       if (!base) return null;
-      // Puntos pueden estar en el item padre, no en el usuario
-      const pts = Number(
-        item.points || item.battleScore || item.score ||
-        item.teamPoints || base.points || 0
-      );
+      const pts = Number(item.points || item.battleScore || item.score || base.points || 0);
       return { ...base, points: pts };
     }).filter(Boolean);
-
     if (teams.length > 0) return teams;
   }
   return [];
@@ -141,7 +162,15 @@ async function startTikTokConnection(username) {
   });
 
   tiktok.on("roomUser", (data) => {
-    io.emit("viewers", { count: data.viewerCount });
+    io.emit("viewers", {
+      count: data.viewerCount || 0,
+      // topViewers viene como array de usuarios activos en algunas versiones del conector
+      topViewers: (data.topViewers || []).map(v => ({
+        user:     v.user?.uniqueId    || v.uniqueId    || v.userId    || "?",
+        nickname: v.user?.nickname    || v.nickname    || v.displayName || "?",
+        viewers:  v.memberCount || v.viewerCount || 0,
+      })).filter(v => v.user !== "?").slice(0, 50),
+    });
   });
 
   // ── ESPECTADORES: alguien entra al live ────────────────────────────────
