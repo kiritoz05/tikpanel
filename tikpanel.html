@@ -11,648 +11,1300 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#0a0a0f;color:#fff;font-family:'DM Sans',sans-serif;min-height:100vh}
+body{background:#0a0a0f;color:#fff;font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
 input,select,button,textarea{font-family:'DM Sans',sans-serif}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#0a0a0f}::-webkit-scrollbar-thumb{background:#2a2a3a;border-radius:2px}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(220%)}}
-@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-@keyframes hp{0%{transform:scale(1)}40%{transform:scale(1.7)}100%{transform:scale(1)}}
-@keyframes fu{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-55px)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@keyframes hp{0%{transform:scale(1)}40%{transform:scale(1.8)}100%{transform:scale(1)}}
+@keyframes fu{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-60px)}}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-@keyframes popIn{from{opacity:0;transform:scale(0.93)}to{opacity:1;transform:scale(1)}}
-.ai{animation:fadeIn .3s ease forwards}
-.ld{animation:pulse 1s infinite}
-.cf{animation:slide 1.4s ease-in-out infinite}
+@keyframes popIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ai{animation:fadeIn .25s ease forwards}
+.ld{animation:pulse 1.2s infinite}
+.cf{animation:slide 1.5s ease-in-out infinite}
 .hpa{animation:hp .3s ease}
-.fh{position:absolute;animation:fu 1s ease forwards;pointer-events:none;font-size:20px;z-index:10}
-.mo{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:200;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(5px)}
+.fh{position:absolute;animation:fu 1s ease forwards;pointer-events:none;font-size:18px;z-index:10}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:200;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px)}
 @media(min-width:580px){.mo{align-items:center;padding:16px}}
-.mb{background:#12121e;border:1px solid #252535;border-radius:20px 20px 0 0;padding:22px;width:100%;max-width:520px;max-height:93vh;overflow-y:auto;animation:slideUp .25s ease}
+.mb{background:#12121e;border:1px solid #252535;border-radius:20px 20px 0 0;padding:22px;width:100%;max-width:530px;max-height:94vh;overflow-y:auto;animation:slideUp .25s ease}
 @media(min-width:580px){.mb{border-radius:20px;animation:popIn .2s ease}}
-/* Table */
-.th{color:#363655;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase}
-.tr{display:grid;grid-template-columns:32px 1fr 90px 50px 50px 44px 78px;padding:10px 13px;gap:6px;align-items:center;border-bottom:1px solid #111120;transition:background .1s}
+.th{color:#363655;font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase}
+.tr{display:grid;grid-template-columns:30px 1fr 85px 44px 40px 40px 86px;padding:9px 12px;gap:5px;align-items:center;border-bottom:1px solid #0f0f1a;transition:background .1s}
 .tr:last-child{border-bottom:none}
-.tr:hover{background:rgba(255,255,255,.015)}
-.tr.dis{opacity:.38}
-/* Badges */
-.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap}
+.tr:hover{background:rgba(255,255,255,.013)}
+.tr.dis{opacity:.35}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:9px;font-weight:700;white-space:nowrap}
 .bf{background:rgba(37,244,238,.1);color:#25f4ee;border:1px solid rgba(37,244,238,.2)}
 .bg{background:rgba(254,44,85,.1);color:#fe2c55;border:1px solid rgba(254,44,85,.2)}
 .bl{background:rgba(245,197,24,.1);color:#f5c518;border:1px solid rgba(245,197,24,.2)}
 .bs{background:rgba(139,92,246,.1);color:#8b5cf6;border:1px solid rgba(139,92,246,.2)}
-.bsh{background:rgba(255,255,255,.05);color:#888;border:1px solid rgba(255,255,255,.1)}
-/* Itoggle */
-.it{width:30px;height:17px;border-radius:9px;cursor:pointer;position:relative;border:none;flex-shrink:0;background:#252535;transition:background .2s}
+.bsh{background:rgba(255,255,255,.05);color:#777;border:1px solid rgba(255,255,255,.1)}
+.it{width:28px;height:16px;border-radius:8px;cursor:pointer;position:relative;border:none;flex-shrink:0;background:#1e1e2e;transition:background .2s;outline:none}
 .it.on{background:#fe2c55}
-.it::after{content:'';position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:#fff;transition:left .2s}
-.it.on::after{left:15px}
-/* Upload */
-.ua{background:#0a0a0f;border:1.5px dashed #252535;border-radius:10px;padding:13px;display:flex;align-items:center;gap:10px;position:relative;overflow:hidden;transition:border-color .2s}
+.it::after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.5)}
+.it.on::after{left:14px}
+.ua{background:#0a0a0f;border:1.5px dashed #252535;border-radius:10px;padding:11px;display:flex;align-items:center;gap:9px;position:relative;overflow:hidden;transition:border-color .2s;cursor:pointer}
 .ua:hover,.ua.has{border-color:#25f4ee}
 .ua.has{border-style:solid}
 .ua input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-/* Toast */
-.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#142214;border:1px solid #2a4a2a;border-radius:10px;padding:8px 16px;color:#4ade80;font-size:12px;font-weight:600;z-index:999;white-space:nowrap}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0f2010;border:1px solid #2a5a2a;border-radius:10px;padding:9px 18px;color:#4ade80;font-size:12px;font-weight:700;z-index:999;white-space:nowrap;animation:popIn .2s ease}
+.spinner{width:14px;height:14px;border:2px solid #333;border-top-color:#fe2c55;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+/* TTS mode tabs */
+.mode-btn{flex:1;padding:7px;border:1px solid #252535;background:transparent;color:#555;border-radius:7px;cursor:pointer;font-size:11px;font-weight:600;transition:all .15s}
+.mode-btn.act{background:rgba(254,44,85,.12);border-color:rgba(254,44,85,.3);color:#fe2c55}
 </style>
 </head>
 <body><div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useRef, useCallback } = React;
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
 const SERVER = "https://tikpanel-production.up.railway.app";
-const EL_KEY = "sk_c59a0c3dddc47a866083fc9b58a7dbd92b722fb2fb12da11";
+const EL_KEY  = "sk_c59a0c3dddc47a866083fc9b58a7dbd92b722fb2fb12da11";
 
-/* ── Usuarios ───────────────────────────────────────────── */
-const USERS = {
-  "admin@tikpanel.com":   {password:"admin123",name:"Admin",     plan:"Pro", avatar:"A"},
-  "luzalva@tikpanel.com": {password:"luz2024", name:"Luz Álva",  plan:"Pro", avatar:"L"},
-  "usuario@tikpanel.com": {password:"pass123", name:"Streamer",  plan:"Free",avatar:"S"},
-};
+/* ─── Storage helpers ───────────────────────────────── */
+const sv  = (k,v)=>{ try{ localStorage.setItem("tp_"+k, JSON.stringify(v)); }catch(e){} };
+const ld  = (k,d)=>{ try{ const v=localStorage.getItem("tp_"+k); return v!==null?JSON.parse(v):d; }catch(e){ return d; } };
 
-/* ── Regalos TikTok (lista completa 2026) ───────────────── */
+/* ─── TTS ENGINE ────────────────────────────────────────
+   Prioridad: ElevenLabs → Web Speech API (gratis, nativo)
+   Cola única — nunca se traba aunque falle EL              */
+const ttsQueue  = [];
+let   ttsActive = false;
+
+function enqueueTTS(text, voiceId, vol, mode) {
+  if (!text || !text.trim()) return;
+  ttsQueue.push({ text: text.trim(), voiceId, vol, mode });
+  if (!ttsActive) drainQueue();
+}
+
+async function drainQueue() {
+  if (ttsQueue.length === 0) { ttsActive = false; return; }
+  ttsActive = true;
+  const item = ttsQueue.shift();
+  try {
+    if (item.mode === "elevenlabs") {
+      await speakElevenLabs(item.text, item.voiceId, item.vol);
+    } else {
+      await speakNative(item.text, item.voiceId, item.vol);
+    }
+  } catch(e) {
+    console.warn("TTS falló, siguiente:", e.message);
+  }
+  // Siempre continuar la cola
+  setTimeout(drainQueue, 50);
+}
+
+async function speakElevenLabs(text, voiceId, vol) {
+  const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+    method: "POST",
+    headers: { "xi-api-key": EL_KEY, "Content-Type": "application/json", "Accept": "audio/mpeg" },
+    body: JSON.stringify({ text, model_id: "eleven_multilingual_v2", voice_settings:{ stability:0.5, similarity_boost:0.75 } }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!r.ok) throw new Error("EL HTTP " + r.status);
+  const blob = await r.blob();
+  const url  = URL.createObjectURL(blob);
+  await playAudio(url, vol);
+  URL.revokeObjectURL(url);
+}
+
+function speakNative(text, voiceId, vol) {
+  return new Promise((res) => {
+    if (!window.speechSynthesis) { res(); return; }
+    window.speechSynthesis.cancel();
+    const utt   = new SpeechSynthesisUtterance(text);
+    utt.volume  = Math.min(1, Math.max(0, vol));
+    utt.rate    = 1.05;
+    utt.pitch   = 1;
+    utt.lang    = "es-MX";
+    // intentar usar la voz del sistema por nombre si se guardó
+    const voices = window.speechSynthesis.getVoices();
+    const match  = voices.find(v => v.name === voiceId || v.lang.startsWith("es"));
+    if (match) utt.voice = match;
+    utt.onend   = res;
+    utt.onerror = res;
+    window.speechSynthesis.speak(utt);
+    // timeout de seguridad: 15s max por utterance
+    setTimeout(res, 15000);
+  });
+}
+
+function playAudio(src, vol) {
+  return new Promise((res) => {
+    const a    = new Audio(src);
+    a.volume   = Math.min(1, Math.max(0, vol));
+    a.onended  = res;
+    a.onerror  = res;
+    a.play().catch(res);
+    setTimeout(res, 30000); // max 30s
+  });
+}
+
+/* ─── Conversión base64 para persistir audio ──────── */
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload  = e => res(e.target.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+/* ─── Datos de TikTok ───────────────────────────────── */
+const EV_TYPES = ["Follow Alert","Gift Alert","Like Alert","Sub Alert","Share Alert"];
+
 const TIKTOK_GIFTS = [
-  // Básicos 1 moneda
   "Cualquier regalo","Rose","You're awesome","GG","TikTok","Ice Cream Cone","Pop",
   "Love you so much","Wink wink","Glow Stick","Cake Slice","Heart Me","Thumbs Up",
   "Heart","Love you","Heart Puff","Blue Heart","Flame heart","Power hug","Squirrel",
-  "Chilli Pepper","Tulip","Graduation Bouquet","Wink Charm",
-  // 2-9 monedas
-  "Team Bracelet","Overreact","Finger Heart","Name shoutout","Pomegranate",
-  "Embroidered Heart","Super Popular","Cheer You Up","Club Power",
-  // 10-49
-  "Rosa","Friendship Necklace","Panda","Sunflower","Birthday Cake","Doughnut",
-  "Lollipop","Rainbow Puke","Great","LMAO","Perfume",
-  // 50-199
-  "I Love You","Garfield","Confetti","Sun Cream","Sunglasses","Hashtag",
-  "Bunny","Pixel Heart","Owl",
-  // 200-999
-  "Money Rain","Newspaper","Corgi","Drama Queen","Tiny Diny",
-  "Fashion Brand","Castle","Gem","Mishka","Star Shower",
-  // 1000+
-  "Disco Ball","Lovely","Interstellar","GG EZ","Dolphin","Elephant",
-  "Cap","Ferris Wheel","Mermaid","Rocket","Galaxy",
-  // Premium
-  "Airplane","Planet","Diamond Flight","Lion","Universe",
-  // Especiales
-  "Diamond Tree","Concert","Aeroplane","Crown","Big Cat","Caballo",
-  "Boxing Gloves","Super Nova","UFO","Dragon","Phoenix","Bear",
+  "Chilli Pepper","Tulip","Graduation Bouquet","Wink Charm","Team Bracelet","Overreact",
+  "Finger Heart","Name shoutout","Pomegranate","Embroidered Heart","Super Popular",
+  "Cheer You Up","Club Power","Rosa","Friendship Necklace","Panda","Sunflower",
+  "Birthday Cake","Doughnut","Lollipop","Rainbow Puke","Great","LMAO","Perfume",
+  "I Love You","Garfield","Confetti","Sun Cream","Sunglasses","Hashtag","Bunny",
+  "Pixel Heart","Owl","Money Rain","Newspaper","Corgi","Drama Queen","Tiny Diny",
+  "Fashion Brand","Castle","Gem","Mishka","Star Shower","Disco Ball","Lovely",
+  "Interstellar","GG EZ","Dolphin","Elephant","Cap","Ferris Wheel","Mermaid",
+  "Rocket","Galaxy","Airplane","Planet","Diamond Flight","Lion","Universe",
+  "Diamond Tree","Concert","Crown","Big Cat","Boxing Gloves","Super Nova",
+  "UFO","Dragon","Phoenix","Bear",
 ];
 
-/* ── Voces ElevenLabs ───────────────────────────────────── */
-const DEF_VOICES = [
-  {id:"cgSgspJ2msm6clMCkdW9",name:"🇲🇽 Bella - Natural (Femenina)"},
-  {id:"21m00Tcm4TlvDq8ikWAM",name:"🌍 Rachel - Multilingüe (Femenina)"},
-  {id:"AZnzlk1XvdvUeBnXmlld",name:"⚡ Domi - Energética (Femenina)"},
-  {id:"EXAVITQu4vr4xnSDxMaL",name:"🌟 Elli - Joven (Femenina)"},
-  {id:"ErXwobaYiN019PkySvjV",name:"🎙️ Antoni - Natural (Masculina)"},
-  {id:"VR6AewLTigWG4xSOukaG",name:"🔊 Arnold - Profunda (Masculina)"},
-  {id:"pNInz6obpgDQGcFmaJgB",name:"📖 Adam - Narrador (Masculina)"},
-  {id:"yoZ06aMxZJJ28mfd3POQ",name:"☕ Sam - Cálida (Masculina)"},
-  {id:"onwK4e9ZLuTAKqWW03F9",name:"👑 Daniel - Presentador (Masculina)"},
+const DEF_VOICES_EL = [
+  {id:"cgSgspJ2msm6clMCkdW9", name:"Bella - Natural (Femenina)"},
+  {id:"21m00Tcm4TlvDq8ikWAM", name:"Rachel - Multilingüe"},
+  {id:"AZnzlk1XvdvUeBnXmlld", name:"Domi - Energética"},
+  {id:"EXAVITQu4vr4xnSDxMaL", name:"Elli - Joven"},
+  {id:"ErXwobaYiN019PkySvjV", name:"Antoni - Natural (Masculina)"},
+  {id:"VR6AewLTigWG4xSOukaG", name:"Arnold - Profunda"},
+  {id:"pNInz6obpgDQGcFmaJgB", name:"Adam - Narrador"},
+  {id:"yoZ06aMxZJJ28mfd3POQ", name:"Sam - Cálida"},
 ];
-
-const EV_TYPES = ["Follow Alert","Gift Alert","Like Alert","Sub Alert","Share Alert"];
 
 const DEF_ACTIONS = [
-  {id:1,enabled:true, name:"Follow Alert",event:"Follow Alert",giftName:"",       minCount:1,duration:5, soundName:"",soundUrl:"",ttsOn:false,ttsText:""},
-  {id:2,enabled:true, name:"Rosa Gift",   event:"Gift Alert",  giftName:"Rose",   minCount:1,duration:5, soundName:"",soundUrl:"",ttsOn:false,ttsText:""},
-  {id:3,enabled:true, name:"Like Alert",  event:"Like Alert",  giftName:"",       minCount:1,duration:5, soundName:"",soundUrl:"",ttsOn:false,ttsText:""},
-  {id:4,enabled:false,name:"Sub Alert",   event:"Sub Alert",   giftName:"",       minCount:1,duration:10,soundName:"",soundUrl:"",ttsOn:false,ttsText:""},
-  {id:5,enabled:false,name:"León Gift",   event:"Gift Alert",  giftName:"Lion",   minCount:1,duration:8, soundName:"",soundUrl:"",ttsOn:false,ttsText:""},
+  {id:1, enabled:true,  name:"Follow Alert", event:"Follow Alert", giftName:"",          minCount:1, duration:5,  soundName:"", soundData:"", ttsOn:false, ttsText:"¡Gracias @usuario por seguirme!"},
+  {id:2, enabled:true,  name:"Rosa Gift",    event:"Gift Alert",   giftName:"Rose",       minCount:1, duration:5,  soundName:"", soundData:"", ttsOn:false, ttsText:"¡Gracias @usuario por la rosa!"},
+  {id:3, enabled:true,  name:"Like Alert",   event:"Like Alert",   giftName:"",          minCount:1, duration:5,  soundName:"", soundData:"", ttsOn:false, ttsText:""},
+  {id:4, enabled:false, name:"Sub Alert",    event:"Sub Alert",    giftName:"",          minCount:1, duration:10, soundName:"", soundData:"", ttsOn:false, ttsText:"¡Gracias @usuario por suscribirte!"},
+  {id:5, enabled:false, name:"León Gift",    event:"Gift Alert",   giftName:"Lion",       minCount:1, duration:8,  soundName:"", soundData:"", ttsOn:false, ttsText:"¡WOW! @usuario mandó un LEÓN! 🦁"},
 ];
 
-/* ── Storage ─────────────────────────────────────────────── */
-const sv=(k,v)=>{try{localStorage.setItem("tp_"+k,JSON.stringify(v))}catch(e){}};
-const ld=(k,d)=>{try{const v=localStorage.getItem("tp_"+k);return v!==null?JSON.parse(v):d}catch(e){return d}};
-const clr=()=>localStorage.removeItem("tp_session");
+/* ─── Users (demo) ──────────────────────────────────── */
+const USERS = {
+  "admin@tikpanel.com":   {password:"admin123", name:"Admin",    plan:"Pro",  avatar:"A"},
+  "luzalva@tikpanel.com": {password:"luz2024",  name:"Luz Álva", plan:"Pro",  avatar:"L"},
+  "usuario@tikpanel.com": {password:"pass123",  name:"Streamer", plan:"Free", avatar:"S"},
+};
 
-/* ── TTS — una sola función, cola para evitar solapamiento ─ */
-const ttsQueue=[];
-let ttsPlaying=false;
-async function enqueueTTS(text,voiceId,vol){
-  ttsQueue.push({text,voiceId,vol});
-  if(!ttsPlaying) processQueue();
-}
-async function processQueue(){
-  if(ttsQueue.length===0){ttsPlaying=false;return;}
-  ttsPlaying=true;
-  const {text,voiceId,vol}=ttsQueue.shift();
-  try{
-    const r=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,{
-      method:"POST",
-      headers:{"xi-api-key":EL_KEY,"Content-Type":"application/json","Accept":"audio/mpeg"},
-      body:JSON.stringify({text,model_id:"eleven_multilingual_v2",voice_settings:{stability:0.5,similarity_boost:0.75}})
-    });
-    if(!r.ok) throw new Error("EL "+r.status);
-    const blob=await r.blob();
-    const audio=new Audio(URL.createObjectURL(blob));
-    audio.volume=vol;
-    await new Promise(res=>{audio.onended=res;audio.onerror=res;audio.play();});
-  }catch(e){console.error("TTS:",e.message);}
-  processQueue();
+/* ─── Pequeños componentes ──────────────────────────── */
+function Toggle({on, onChange, color="#fe2c55", size="md"}) {
+  const w = size==="sm" ? 28 : 42, h = size==="sm" ? 16 : 23, r = size==="sm" ? 12 : 10, dot = size==="sm" ? 12 : 19;
+  return (
+    <div onClick={onChange} style={{width:w,height:h,borderRadius:w,cursor:"pointer",position:"relative",
+      background:on?color:"#1e1e2e",transition:"background .2s",flexShrink:0,border:"1px solid rgba(255,255,255,.05)"}}>
+      <div style={{position:"absolute",top:2,left:on?w-dot-2:2,width:dot,height:dot,borderRadius:"50%",
+        background:"#fff",transition:"left .2s",boxShadow:"0 1px 4px rgba(0,0,0,.5)"}}/>
+    </div>
+  );
 }
 
-/* ── Toggle ──────────────────────────────────────────────── */
-function Toggle({on,onChange,color="#fe2c55"}){
-  return <div onClick={onChange} style={{width:42,height:23,borderRadius:12,cursor:"pointer",position:"relative",background:on?color:"#252535",transition:"background .2s",flexShrink:0}}>
-    <div style={{position:"absolute",top:2,left:on?21:2,width:19,height:19,borderRadius:"50%",background:"#fff",transition:"left .2s",boxShadow:"0 1px 4px rgba(0,0,0,.4)"}}/>
-  </div>;
+function IBtn({ico, onClick, color="#aaa", title=""}) {
+  return (
+    <button onClick={onClick} title={title}
+      style={{background:"transparent",border:"1px solid #1e1e2e",borderRadius:5,
+        width:24,height:24,cursor:"pointer",color,display:"flex",alignItems:"center",
+        justifyContent:"center",fontSize:11,flexShrink:0,transition:"border-color .15s"}}
+      onMouseEnter={e=>e.currentTarget.style.borderColor=color}
+      onMouseLeave={e=>e.currentTarget.style.borderColor="#1e1e2e"}>
+      {ico}
+    </button>
+  );
 }
 
-/* ── Modal Acción ────────────────────────────────────────── */
-function ActModal({action,voiceId,vol,onSave,onClose}){
-  const def={id:Date.now(),enabled:true,name:"",event:"Gift Alert",giftName:"Cualquier regalo",minCount:1,duration:5,soundName:"",soundUrl:"",ttsOn:false,ttsText:""};
-  const [f,setF]=useState(action?{...action}:def);
-  const [sUrl,setSUrl]=useState(action?.soundUrl||"");
-  const [sName,setSName]=useState(action?.soundName||"");
-  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+/* ─── Modal Acción ──────────────────────────────────── */
+function ActModal({ action, ttsMode, ttsVoiceId, ttsNativeVoice, vol, onSave, onClose }) {
+  const def = {
+    id: Date.now(), enabled:true, name:"", event:"Gift Alert",
+    giftName:"Cualquier regalo", minCount:1, duration:5,
+    soundName:"", soundData:"", ttsOn:false, ttsText:"",
+  };
+  const [f,     setF]   = useState(action ? {...action} : def);
+  const [busy,  setBusy] = useState(false);
 
-  const lbl={display:"block",color:"#555",fontSize:10,fontWeight:700,letterSpacing:.8,textTransform:"uppercase",marginBottom:6};
-  const inp={width:"100%",background:"#0a0a0f",border:"1px solid #252535",borderRadius:9,padding:"10px 13px",color:"#fff",fontSize:13,outline:"none"};
+  const set = (k, v) => setF(p => ({...p, [k]:v}));
 
-  return <div className="mo" onClick={e=>e.target.classList.contains("mo")&&onClose()}>
-    <div className="mb">
-      <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:17,marginBottom:18}}>{action?"✏️ Editar":"➕ Nueva"} Acción</div>
+  const lbl = {display:"block",color:"#556",fontSize:9,fontWeight:700,letterSpacing:.8,textTransform:"uppercase",marginBottom:5};
+  const inp = {width:"100%",background:"#0a0a0f",border:"1px solid #252535",borderRadius:8,padding:"9px 12px",color:"#fff",fontSize:12,outline:"none"};
 
-      <div style={{marginBottom:13}}><label style={lbl}>Nombre</label><input value={f.name} onChange={e=>set("name",e.target.value)} placeholder="Ej: Rosa Sound" style={inp}/></div>
+  const handleFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setBusy(true);
+    try {
+      const data = await fileToBase64(file);
+      set("soundData", data);
+      set("soundName", file.name);
+    } catch(err) { alert("Error al leer el archivo"); }
+    setBusy(false);
+  };
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:13}}>
-        <div><label style={lbl}>Evento</label>
-          <select value={f.event} onChange={e=>set("event",e.target.value)} style={{...inp,cursor:"pointer"}}>
-            {EV_TYPES.map(t=><option key={t}>{t}</option>)}
-          </select>
-        </div>
-        <div><label style={lbl}>Duración (seg)</label><input type="number" min="1" max="60" value={f.duration} onChange={e=>set("duration",Number(e.target.value))} style={inp}/></div>
-      </div>
+  const testSound = () => {
+    if (!f.soundData) return;
+    playAudio(f.soundData, (vol||80)/100);
+  };
 
-      {f.event==="Gift Alert"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:13}}>
-        <div><label style={lbl}>Regalo de TikTok</label>
-          <select value={f.giftName} onChange={e=>set("giftName",e.target.value)} style={{...inp,cursor:"pointer",maxHeight:200}}>
-            {TIKTOK_GIFTS.map(g=><option key={g}>{g}</option>)}
-          </select>
-        </div>
-        <div><label style={lbl}>Cantidad mínima</label><input type="number" min="1" value={f.minCount} onChange={e=>set("minCount",Number(e.target.value))} style={inp}/></div>
-      </div>}
+  const testTTS = () => {
+    const text = (f.ttsText||"Hola, esto es una prueba").replace(/@usuario/gi, "UsuarioPrueba");
+    if (ttsMode === "elevenlabs") {
+      enqueueTTS(text, ttsVoiceId, (vol||80)/100, "elevenlabs");
+    } else {
+      enqueueTTS(text, ttsNativeVoice, (vol||80)/100, "native");
+    }
+  };
 
-      {/* Sonido */}
-      <div style={{marginBottom:13}}>
-        <label style={lbl}>Sonido MP3</label>
-        <div className={`ua ${sName?"has":""}`}>
-          <input type="file" accept="audio/*" onChange={e=>{const file=e.target.files[0];if(!file)return;setSUrl(URL.createObjectURL(file));setSName(file.name);}}/>
-          <div style={{width:34,height:34,borderRadius:9,background:"rgba(37,244,238,.08)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>🎵</div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:12,fontWeight:600,color:sName?"#25f4ee":"#ccc",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sName||"Toca para subir MP3"}</div>
-            <div style={{fontSize:10,color:sName?"rgba(37,244,238,.7)":"#555",marginTop:2}}>{sName?"✓ Listo":"MP3, WAV, OGG"}</div>
+  return (
+    <div className="mo" onClick={e => e.target.classList.contains("mo") && onClose()}>
+      <div className="mb">
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
+          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:16}}>
+            {action ? "✏️ Editar Acción" : "➕ Nueva Acción"}
           </div>
-          {sUrl&&<button onClick={e=>{e.preventDefault();e.stopPropagation();const a=new Audio(sUrl);a.volume=vol/100;a.play();}}
-            style={{background:"rgba(37,244,238,.1)",border:"1px solid rgba(37,244,238,.3)",borderRadius:8,padding:"5px 11px",color:"#25f4ee",fontSize:11,fontWeight:600,cursor:"pointer",zIndex:2,position:"relative",flexShrink:0}}>▶ Probar</button>}
+          <button onClick={onClose} style={{background:"#1a1a28",border:"none",borderRadius:6,width:26,height:26,
+            cursor:"pointer",color:"#555",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
         </div>
-      </div>
 
-      {/* TTS */}
-      <div style={{marginBottom:16}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:7}}>
-          <label style={{...lbl,marginBottom:0}}>Mensaje TTS (ElevenLabs)</label>
-          <div style={{display:"flex",alignItems:"center",gap:6}}>
-            <Toggle on={f.ttsOn} onChange={()=>set("ttsOn",!f.ttsOn)} color="#25f4ee"/>
-            <span style={{fontSize:10,color:f.ttsOn?"#25f4ee":"#555"}}>{f.ttsOn?"Activo":"Inactivo"}</span>
+        {/* Nombre */}
+        <div style={{marginBottom:12}}>
+          <label style={lbl}>Nombre de la acción</label>
+          <input value={f.name} onChange={e=>set("name",e.target.value)}
+            placeholder="Ej: Rosa Sound" style={inp}/>
+        </div>
+
+        {/* Evento + Duración */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:12}}>
+          <div>
+            <label style={lbl}>Evento</label>
+            <select value={f.event} onChange={e=>set("event",e.target.value)} style={{...inp,cursor:"pointer"}}>
+              {EV_TYPES.map(t=><option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>Duración (seg)</label>
+            <input type="number" min="1" max="120" value={f.duration}
+              onChange={e=>set("duration",Number(e.target.value))} style={inp}/>
           </div>
         </div>
-        <div style={{background:"#0a0a0f",border:"1px solid #252535",borderRadius:9,overflow:"hidden"}}>
-          <textarea value={f.ttsText} onChange={e=>set("ttsText",e.target.value)} disabled={!f.ttsOn}
-            placeholder="Ej: ¡Gracias @usuario por la rosa! Usa @usuario para el nombre"
-            style={{width:"100%",background:"transparent",border:"none",padding:"10px 13px",color:f.ttsOn?"#fff":"#444",fontSize:12,outline:"none",resize:"vertical",minHeight:60,lineHeight:1.6}}/>
-          {f.ttsOn&&f.ttsText&&<div style={{borderTop:"1px solid #1a1a28",padding:"7px 11px",display:"flex",justifyContent:"flex-end"}}>
-            <button onClick={()=>enqueueTTS(f.ttsText.replace(/@usuario/gi,"UsuarioPrueba"),voiceId,vol/100)}
-              style={{background:"rgba(254,44,85,.08)",border:"1px solid rgba(254,44,85,.2)",borderRadius:7,padding:"4px 11px",color:"#fe2c55",fontSize:10,fontWeight:600,cursor:"pointer"}}>🔊 Probar TTS</button>
-          </div>}
-        </div>
-        <div style={{color:"#444",fontSize:10,marginTop:5}}>💡 <span style={{color:"#25f4ee",fontFamily:"monospace"}}>@usuario</span> se reemplaza con el nombre automáticamente</div>
-      </div>
 
-      <div style={{display:"flex",gap:9}}>
-        <button onClick={onClose} style={{flex:1,background:"transparent",border:"1px solid #252535",borderRadius:9,padding:"11px",color:"#666",fontWeight:600,cursor:"pointer",fontSize:13}}>Cancelar</button>
-        <button onClick={()=>onSave({...f,soundUrl:sUrl,soundName:sName})}
-          style={{flex:2,background:"linear-gradient(135deg,#fe2c55,#ff6b81)",border:"none",borderRadius:9,padding:"11px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>💾 Guardar Acción</button>
+        {/* Regalo específico */}
+        {f.event === "Gift Alert" && (
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:12}}>
+            <div>
+              <label style={lbl}>Regalo de TikTok</label>
+              <select value={f.giftName} onChange={e=>set("giftName",e.target.value)} style={{...inp,cursor:"pointer"}}>
+                {TIKTOK_GIFTS.map(g=><option key={g}>{g}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={lbl}>Cantidad mínima</label>
+              <input type="number" min="1" value={f.minCount}
+                onChange={e=>set("minCount",Number(e.target.value))} style={inp}/>
+            </div>
+          </div>
+        )}
+
+        {/* Sonido MP3 — persistido en base64 */}
+        <div style={{marginBottom:12}}>
+          <label style={lbl}>Sonido de alerta (MP3/WAV/OGG)</label>
+          <div className={`ua ${f.soundName ? "has" : ""}`}>
+            <input type="file" accept="audio/*" onChange={handleFile} disabled={busy}/>
+            <div style={{width:32,height:32,borderRadius:8,background:"rgba(37,244,238,.08)",
+              display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>
+              {busy ? <span className="spinner"/> : "🎵"}
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:12,fontWeight:600,color:f.soundName?"#25f4ee":"#aaa",
+                overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                {busy ? "Cargando..." : f.soundName || "Toca para subir audio"}
+              </div>
+              <div style={{fontSize:9,color:f.soundName?"rgba(37,244,238,.6)":"#444",marginTop:2}}>
+                {f.soundName ? "✓ Guardado — no se pierde al recargar" : "MP3, WAV, OGG"}
+              </div>
+            </div>
+            {f.soundData && (
+              <button onClick={e=>{e.preventDefault();e.stopPropagation();testSound();}}
+                style={{background:"rgba(37,244,238,.1)",border:"1px solid rgba(37,244,238,.3)",
+                  borderRadius:7,padding:"5px 10px",color:"#25f4ee",fontSize:10,fontWeight:700,
+                  cursor:"pointer",zIndex:2,position:"relative",flexShrink:0}}>▶ Probar</button>
+            )}
+            {f.soundName && (
+              <button onClick={e=>{e.preventDefault();e.stopPropagation();set("soundData","");set("soundName","");}}
+                style={{background:"rgba(254,44,85,.08)",border:"1px solid rgba(254,44,85,.2)",
+                  borderRadius:7,padding:"5px 9px",color:"#fe2c55",fontSize:10,fontWeight:700,
+                  cursor:"pointer",zIndex:2,position:"relative",flexShrink:0}}>✕</button>
+            )}
+          </div>
+        </div>
+
+        {/* TTS */}
+        <div style={{marginBottom:18}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+            <label style={{...lbl,marginBottom:0}}>Mensaje TTS al activarse</label>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <Toggle on={f.ttsOn} onChange={()=>set("ttsOn",!f.ttsOn)} color="#25f4ee" size="sm"/>
+              <span style={{fontSize:9,color:f.ttsOn?"#25f4ee":"#444",fontWeight:700}}>
+                {f.ttsOn ? "ACTIVO" : "APAGADO"}
+              </span>
+            </div>
+          </div>
+          <div style={{background:"#0a0a0f",border:`1px solid ${f.ttsOn?"rgba(37,244,238,.25)":"#252535"}`,
+            borderRadius:9,overflow:"hidden",transition:"border-color .2s"}}>
+            <textarea value={f.ttsText} onChange={e=>set("ttsText",e.target.value)} disabled={!f.ttsOn}
+              placeholder="Ej: ¡Gracias @usuario por la rosa!"
+              style={{width:"100%",background:"transparent",border:"none",padding:"9px 12px",
+                color:f.ttsOn?"#fff":"#333",fontSize:12,outline:"none",resize:"vertical",
+                minHeight:55,lineHeight:1.6}}/>
+            {f.ttsOn && f.ttsText && (
+              <div style={{borderTop:"1px solid #1a1a28",padding:"6px 10px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontSize:9,color:"#444"}}>
+                  Motor: <span style={{color:"#fe2c55"}}>{ttsMode==="elevenlabs"?"ElevenLabs":"Voz del navegador (gratis)"}</span>
+                </span>
+                <button onClick={testTTS}
+                  style={{background:"rgba(254,44,85,.08)",border:"1px solid rgba(254,44,85,.2)",
+                    borderRadius:6,padding:"4px 10px",color:"#fe2c55",fontSize:9,fontWeight:700,cursor:"pointer"}}>
+                  🔊 Probar
+                </button>
+              </div>
+            )}
+          </div>
+          <div style={{color:"#444",fontSize:9,marginTop:4}}>
+            💡 <span style={{color:"#25f4ee",fontFamily:"monospace"}}>@usuario</span> se reemplaza con el nombre
+          </div>
+        </div>
+
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={onClose}
+            style={{flex:1,background:"transparent",border:"1px solid #252535",borderRadius:9,
+              padding:"10px",color:"#555",fontWeight:600,cursor:"pointer",fontSize:12}}>
+            Cancelar
+          </button>
+          <button onClick={()=>{
+              if(!f.name.trim()) { alert("Ponle un nombre a la acción"); return; }
+              onSave({...f});
+            }}
+            style={{flex:2,background:"linear-gradient(135deg,#fe2c55,#ff6b81)",border:"none",
+              borderRadius:9,padding:"10px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12}}>
+            💾 Guardar Acción
+          </button>
+        </div>
       </div>
     </div>
-  </div>;
+  );
 }
 
-/* ── Login ───────────────────────────────────────────────── */
-function Login({onLogin}){
-  const [email,setEmail]=useState("");const [pass,setPass]=useState("");const [err,setErr]=useState("");const [loading,setLoading]=useState(false);
-  const go=()=>{setErr("");setLoading(true);setTimeout(()=>{const u=USERS[email.toLowerCase()];if(u&&u.password===pass){onLogin({...u,email});}else{setErr("Credenciales incorrectas.");setLoading(false);}},700);};
-  const inp={width:"100%",background:"#0d0d18",border:"1px solid #1e1e2e",borderRadius:11,padding:"12px 15px",color:"#fff",fontSize:13,outline:"none"};
-  return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#0a0a0f",padding:20}}>
-    <div style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:22,padding:"42px 34px",width:"100%",maxWidth:390,boxShadow:"0 40px 80px rgba(0,0,0,.7)"}}>
-      <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:7}}>
-        <div style={{width:38,height:38,borderRadius:10,background:"linear-gradient(135deg,#fe2c55,#25f4ee)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:18}}>T</div>
-        <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,letterSpacing:-.5}}>ik<span style={{color:"#fe2c55"}}>Panel</span></span>
+/* ─── Login ─────────────────────────────────────────── */
+function Login({ onLogin }) {
+  const [email,   setEmail]   = useState("");
+  const [pass,    setPass]    = useState("");
+  const [err,     setErr]     = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const go = () => {
+    setErr(""); setLoading(true);
+    setTimeout(() => {
+      const u = USERS[email.toLowerCase()];
+      if (u && u.password === pass) { onLogin({...u, email}); }
+      else { setErr("Correo o contraseña incorrectos."); setLoading(false); }
+    }, 600);
+  };
+
+  const inp = {width:"100%",background:"#0d0d18",border:"1px solid #1e1e2e",borderRadius:10,
+    padding:"11px 14px",color:"#fff",fontSize:13,outline:"none"};
+
+  return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",
+      background:"#0a0a0f",padding:20}}>
+      <div style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:22,padding:"40px 32px",
+        width:"100%",maxWidth:380,boxShadow:"0 40px 80px rgba(0,0,0,.7)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:6}}>
+          <div style={{width:36,height:36,borderRadius:9,background:"linear-gradient(135deg,#fe2c55,#25f4ee)",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:17}}>T</div>
+          <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:21,letterSpacing:-.5}}>
+            ik<span style={{color:"#fe2c55"}}>Panel</span>
+          </span>
+        </div>
+        <p style={{color:"#555",fontSize:12,marginBottom:22}}>Panel de control para TikTok LIVE</p>
+        <div style={{marginBottom:12}}>
+          <label style={{display:"block",color:"#555",fontSize:9,fontWeight:700,letterSpacing:.8,
+            textTransform:"uppercase",marginBottom:6}}>Correo</label>
+          <input value={email} onChange={e=>setEmail(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&go()} type="email" placeholder="tu@correo.com" style={inp}/>
+        </div>
+        <div style={{marginBottom:16}}>
+          <label style={{display:"block",color:"#555",fontSize:9,fontWeight:700,letterSpacing:.8,
+            textTransform:"uppercase",marginBottom:6}}>Contraseña</label>
+          <input value={pass} onChange={e=>setPass(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&go()} type="password" placeholder="••••••••" style={inp}/>
+        </div>
+        {err && (
+          <div style={{background:"rgba(254,44,85,.08)",border:"1px solid rgba(254,44,85,.2)",
+            borderRadius:8,padding:"8px 12px",color:"#fe2c55",fontSize:12,marginBottom:12}}>{err}</div>
+        )}
+        <button onClick={go} disabled={loading}
+          style={{width:"100%",background:loading?"#1e1e2e":"linear-gradient(135deg,#fe2c55,#ff6b81)",
+            border:"none",borderRadius:10,padding:"12px",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+          {loading ? "Verificando..." : "Ingresar →"}
+        </button>
       </div>
-      <p style={{color:"#555",fontSize:12,marginBottom:22}}>Control para streamers de TikTok LIVE</p>
-      <div style={{display:"inline-flex",alignItems:"center",gap:5,background:"rgba(254,44,85,.08)",border:"1px solid rgba(254,44,85,.2)",borderRadius:20,padding:"4px 11px",fontSize:11,color:"#fe2c55",marginBottom:22,fontWeight:600}}>🔒 Acceso por invitación</div>
-      <div style={{marginBottom:13}}><label style={{display:"block",color:"#555",fontSize:10,fontWeight:700,letterSpacing:.8,textTransform:"uppercase",marginBottom:7}}>Correo</label><input value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&go()} type="email" placeholder="tu@correo.com" style={inp}/></div>
-      <div style={{marginBottom:16}}><label style={{display:"block",color:"#555",fontSize:10,fontWeight:700,letterSpacing:.8,textTransform:"uppercase",marginBottom:7}}>Contraseña</label><input value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&go()} type="password" placeholder="••••••••" style={inp}/></div>
-      {err&&<div style={{background:"rgba(254,44,85,.08)",border:"1px solid rgba(254,44,85,.25)",borderRadius:9,padding:"9px 13px",color:"#fe2c55",fontSize:12,marginBottom:13}}>{err}</div>}
-      <button onClick={go} disabled={loading} style={{width:"100%",background:loading?"#1e1e2e":"linear-gradient(135deg,#fe2c55,#ff6b81)",border:"none",borderRadius:11,padding:"12px",color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer"}}>
-        {loading?"Verificando...":"Ingresar →"}
-      </button>
-      <p style={{color:"#333",fontSize:11,textAlign:"center",marginTop:16}}>¿Sin acceso? Solicítalo al administrador</p>
     </div>
-  </div>;
+  );
 }
 
-/* ── App ─────────────────────────────────────────────────── */
-function App(){
-  const [user,setUser]=useState(()=>ld("session",null));
-  const [tab, setTab] =useState(()=>ld("tab","dashboard"));
-  const [sb,  setSb]  =useState(false);
+/* ─── Pantalla principal ────────────────────────────── */
+function App() {
+  const [user,   setUser]   = useState(() => ld("session", null));
+  const [tab,    setTab]    = useState(() => ld("tab", "dashboard"));
+  const [sb,     setSb]     = useState(false);
 
-  // Live
-  const [tUser,setTUser]=useState(()=>ld("tuser",""));
-  const [conn, setConn] =useState(false);
-  const [conn2,setConn2]=useState(false);
-  const [dots, setDots] =useState("");
+  // Conexión TikTok
+  const [tUser,  setTUser]  = useState(() => ld("tuser", ""));
+  const [conn,   setConn]   = useState(false);
+  const [conn2,  setConn2]  = useState(false);
+  const [dots,   setDots]   = useState("");
+  const [connErr,setConnErr]= useState("");
 
   // Stats
-  const [stats,setStats]=useState({viewers:0,gifts:0,follows:0,messages:0,likes:0});
-  const [log,  setLog]  =useState([]);
-  const [lAnim,setLAnim]=useState(false);
-  const [fh,   setFh]   =useState([]);
-  const [totDia,setTotDia]=useState(0);
-  const [totLike,setTotLike]=useState(0);
-  const [tapR,setTapR]=useState([]);
-  const [likeR,setLikeR]=useState([]);
+  const [stats,  setStats]  = useState({viewers:0, gifts:0, follows:0, messages:0, likes:0});
+  const [log,    setLog]    = useState([]);
+  const [lAnim,  setLAnim]  = useState(false);
+  const [fh,     setFh]     = useState([]);
+  const [totDia, setTotDia] = useState(0);
+  const [totLike,setTotLike]= useState(0);
+  const [tapR,   setTapR]   = useState([]);
+  const [likeR,  setLikeR]  = useState([]);
 
-  // TTS
-  const [ttsOn, setTtsOn] =useState(()=>ld("ttsOn",true));
-  const [ttsVol,setTtsVol]=useState(()=>ld("ttsVol",80));
-  const [ttsV,  setTtsV]  =useState(()=>ld("ttsVoice","cgSgspJ2msm6clMCkdW9"));
-  const [actV,  setActV]  =useState(()=>ld("ttsVoice","cgSgspJ2msm6clMCkdW9"));
-  const [vOk,   setVOk]   =useState(false);
-  const [voices,setVoices]=useState(DEF_VOICES);
-  const [ldV,   setLdV]   =useState(false);
-  const ttsOnR=useRef(ld("ttsOn",true));
-  const ttsVolR=useRef(ld("ttsVol",80));
-  const actVR=useRef(ld("ttsVoice","cgSgspJ2msm6clMCkdW9"));
+  // TTS settings
+  const [ttsMode,  setTtsMode]  = useState(() => ld("ttsMode", "native"));   // "native" | "elevenlabs"
+  const [ttsOn,    setTtsOn]    = useState(() => ld("ttsOn", true));
+  const [ttsVol,   setTtsVol]   = useState(() => ld("ttsVol", 80));
+  const [ttsVoice, setTtsVoice] = useState(() => ld("ttsVoice", "cgSgspJ2msm6clMCkdW9")); // EL voice ID
+  const [nativeVoices, setNativeVoices] = useState([]);
+  const [nativeVoice,  setNativeVoice]  = useState(() => ld("nativeVoice", ""));
+  const [elVoices, setElVoices] = useState(DEF_VOICES_EL);
+  const [elOk,     setElOk]     = useState(null); // null=sin probar, true=ok, false=error
+
+  // Refs (para callbacks que no re-renderizan)
+  const ttsOnR    = useRef(ttsOn);
+  const ttsVolR   = useRef(ttsVol);
+  const ttsModeR  = useRef(ttsMode);
+  const ttsVoiceR = useRef(ttsVoice);
+  const nativeVoiceR = useRef(nativeVoice);
+  const actsR     = useRef([]);
+  const alertsOnR = useRef(true);
 
   // Acciones
-  const [actions,setActions]=useState(()=>ld("actions3",DEF_ACTIONS));
-  const [alertsOn,setAlertsOn]=useState(()=>ld("alertsOn",true));
-  const [showM,setShowM]=useState(false);
-  const [editA,setEditA]=useState(null);
-  const [searchQ,setSearchQ]=useState("");
-  const [toast,setToast]=useState("");
-  const actsR=useRef(actions);
-  const alertsOnR=useRef(ld("alertsOn",true));
+  const [actions,   setActions]   = useState(() => ld("actions4", DEF_ACTIONS));
+  const [alertsOn,  setAlertsOn]  = useState(() => ld("alertsOn", true));
+  const [showM,     setShowM]     = useState(false);
+  const [editA,     setEditA]     = useState(null);
+  const [searchQ,   setSearchQ]   = useState("");
+  const [toast,     setToast]     = useState("");
+  const [delConfirm,setDelConfirm]= useState(null); // id acción a confirmar delete
 
-  // Persistencia
-  useEffect(()=>{sv("tab",tab);},[tab]);
-  useEffect(()=>{sv("tuser",tUser);},[tUser]);
-  useEffect(()=>{ttsOnR.current=ttsOn;sv("ttsOn",ttsOn);},[ttsOn]);
-  useEffect(()=>{ttsVolR.current=ttsVol;sv("ttsVol",ttsVol);},[ttsVol]);
-  useEffect(()=>{alertsOnR.current=alertsOn;sv("alertsOn",alertsOn);},[alertsOn]);
-  useEffect(()=>{actsR.current=actions;sv("actions3",actions.map(a=>({...a,soundUrl:"",soundName:a.soundName?"⚠️resubir":""})));},[actions]);
+  // UI
+  const showT = (msg) => { setToast(msg); setTimeout(()=>setToast(""), 2500); };
 
-  // Cargar voces EL
-  useEffect(()=>{
-    setLdV(true);
-    fetch("https://api.elevenlabs.io/v1/voices",{headers:{"xi-api-key":EL_KEY}})
-      .then(r=>r.json()).then(d=>{if(d.voices?.length){const m=d.voices.map(v=>({id:v.voice_id,name:v.name}));setVoices([...DEF_VOICES,...m.filter(v=>!DEF_VOICES.find(x=>x.id===v.id))]);} }).catch(()=>{}).finally(()=>setLdV(false));
-  },[]);
+  // Sync refs
+  useEffect(()=>{ ttsOnR.current=ttsOn;    sv("ttsOn",    ttsOn);    }, [ttsOn]);
+  useEffect(()=>{ ttsVolR.current=ttsVol;  sv("ttsVol",   ttsVol);   }, [ttsVol]);
+  useEffect(()=>{ ttsModeR.current=ttsMode;sv("ttsMode",  ttsMode);  }, [ttsMode]);
+  useEffect(()=>{ ttsVoiceR.current=ttsVoice; sv("ttsVoice",ttsVoice);}, [ttsVoice]);
+  useEffect(()=>{ nativeVoiceR.current=nativeVoice; sv("nativeVoice",nativeVoice);}, [nativeVoice]);
+  useEffect(()=>{ actsR.current=actions;   sv("actions4", actions);  }, [actions]);
+  useEffect(()=>{ alertsOnR.current=alertsOn; sv("alertsOn",alertsOn);}, [alertsOn]);
+  useEffect(()=>{ sv("tab",   tab);   }, [tab]);
+  useEffect(()=>{ sv("tuser", tUser); }, [tUser]);
 
-  const showT=(msg)=>{setToast(msg);setTimeout(()=>setToast(""),2500);};
+  // Cargar voces nativas del navegador
+  useEffect(() => {
+    const load = () => {
+      const vs = window.speechSynthesis?.getVoices() || [];
+      const esList = vs.filter(v => v.lang.startsWith("es") || v.lang.startsWith("en"));
+      setNativeVoices(esList.length ? esList : vs);
+      if (!nativeVoice && esList.length) {
+        const def = esList.find(v=>v.lang.startsWith("es-MX")) || esList[0];
+        if (def) { setNativeVoice(def.name); nativeVoiceR.current=def.name; }
+      }
+    };
+    load();
+    window.speechSynthesis?.addEventListener("voiceschanged", load);
+    return () => window.speechSynthesis?.removeEventListener("voiceschanged", load);
+  }, []);
 
-  // ── Disparar acción ────────────────────────────────────
-  const fireAction=useCallback(async(eventType,giftName="",nickname="",giftCount=1)=>{
-    if(!alertsOnR.current) return;
-    const acts=actsR.current.filter(a=>a.enabled&&a.event===eventType);
-    for(const act of acts){
-      if(act.event==="Gift Alert"){
+  // Cargar voces ElevenLabs
+  useEffect(() => {
+    if (ttsMode !== "elevenlabs") return;
+    fetch("https://api.elevenlabs.io/v1/voices", {headers:{"xi-api-key":EL_KEY}})
+      .then(r=>r.json())
+      .then(d => {
+        if (d.voices?.length) {
+          const m = d.voices.map(v=>({id:v.voice_id, name:v.name}));
+          setElVoices([...DEF_VOICES_EL, ...m.filter(v=>!DEF_VOICES_EL.find(x=>x.id===v.id))]);
+          setElOk(true);
+        }
+      })
+      .catch(() => setElOk(false));
+  }, [ttsMode]);
+
+  // Dots animación conectando
+  useEffect(() => {
+    if (!conn2) return;
+    const t = setInterval(()=>setDots(d=>d.length>=3?"":d+"."), 400);
+    return () => clearInterval(t);
+  }, [conn2]);
+
+  /* ─── Disparar acción ──────────────────────────── */
+  const fireAction = useCallback((eventType, giftName="", nickname="", giftCount=1) => {
+    if (!alertsOnR.current) return;
+    const acts = actsR.current.filter(a => a.enabled && a.event===eventType);
+    for (const act of acts) {
+      if (act.event==="Gift Alert") {
         const gn=(giftName||"").toLowerCase();
         const an=(act.giftName||"").toLowerCase();
-        if(an!=="cualquier regalo"&&!gn.includes(an)&&!an.includes(gn)) continue;
-        if(giftCount<act.minCount) continue;
+        if (an!=="cualquier regalo" && !gn.includes(an) && !an.includes(gn)) continue;
+        if (giftCount < act.minCount) continue;
       }
-      // Sonido MP3
-      if(act.soundUrl){try{const a=new Audio(act.soundUrl);a.volume=ttsVolR.current/100;a.play();}catch(e){}}
-      // TTS — usando cola, sin duplicados
-      if(act.ttsOn&&act.ttsText&&ttsOnR.current){
-        const text=act.ttsText.replace(/@usuario/gi,nickname);
-        enqueueTTS(text,actVR.current,ttsVolR.current/100);
+      // Sonido MP3 (base64 persistido)
+      if (act.soundData) {
+        playAudio(act.soundData, ttsVolR.current/100);
+      }
+      // TTS
+      if (act.ttsOn && act.ttsText && ttsOnR.current) {
+        const text = act.ttsText.replace(/@usuario/gi, nickname);
+        if (ttsModeR.current === "elevenlabs") {
+          enqueueTTS(text, ttsVoiceR.current, ttsVolR.current/100, "elevenlabs");
+        } else {
+          enqueueTTS(text, nativeVoiceR.current, ttsVolR.current/100, "native");
+        }
       }
     }
-  },[]);
+  }, []);
 
-  // ── Socket ─────────────────────────────────────────────
-  useEffect(()=>{
-    const sock=io(SERVER,{transports:["websocket"]});
-    sock.on("event",async d=>{
-      if(d.type==="chat"){
-        setLog(p=>[{t:"msg",tx:`💬 @${d.user}: ${d.comment}`},...p].slice(0,30));
-        setStats(p=>({...p,messages:p.messages+1}));
-        // TTS comentarios solo si NO hay ninguna acción de chat activa
-        if(ttsOnR.current){
-          enqueueTTS(`${d.nickname||d.user} dice: ${d.comment}`,actVR.current,ttsVolR.current/100);
+  /* ─── Socket.IO ────────────────────────────────── */
+  useEffect(() => {
+    const sock = io(SERVER, {
+      transports: ["websocket"],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1500,
+      reconnectionDelayMax: 8000,
+      timeout: 12000,
+    });
+
+    sock.on("connect", () => {
+      console.log("Socket conectado:", sock.id);
+    });
+
+    sock.on("connect_error", (e) => {
+      console.warn("Socket error:", e.message);
+    });
+
+    sock.on("event", d => {
+      if (d.type==="chat") {
+        setLog(p=>[{t:"msg",tx:`💬 @${d.nickname||d.user}: ${d.comment}`},...p].slice(0,50));
+        setStats(p=>({...p, messages:p.messages+1}));
+        if (ttsOnR.current) {
+          const text = `${d.nickname||d.user} dice: ${d.comment}`;
+          if (ttsModeR.current==="elevenlabs") {
+            enqueueTTS(text, ttsVoiceR.current, ttsVolR.current/100, "elevenlabs");
+          } else {
+            enqueueTTS(text, nativeVoiceR.current, ttsVolR.current/100, "native");
+          }
         }
-      } else if(d.type==="gift"){
-        setLog(p=>[{t:"gift",tx:`🎁 @${d.nickname} → ${d.giftCount}x ${d.giftName}`},...p].slice(0,30));
-        setStats(p=>({...p,gifts:p.gifts+1}));
-        const dm=d.diamondCount||0;
+      } else if (d.type==="gift") {
+        setLog(p=>[{t:"gift",tx:`🎁 @${d.nickname||d.user} → ${d.giftCount}× ${d.giftName}`},...p].slice(0,50));
+        setStats(p=>({...p, gifts:p.gifts+1}));
+        const dm = d.diamondCount||0;
         setTotDia(p=>p+dm);
-        setTapR(prev=>{const ex=prev.find(u=>u.user===d.user);const upd=ex?prev.map(u=>u.user===d.user?{...u,diamonds:u.diamonds+dm,gifts:u.gifts+1}:u):[...prev,{user:d.user,nickname:d.nickname||d.user,diamonds:dm,gifts:1}];return upd.sort((a,b)=>b.diamonds-a.diamonds).slice(0,5);});
-        fireAction("Gift Alert",d.giftName,d.nickname,d.giftCount);
-      } else if(d.type==="follow"){
-        setLog(p=>[{t:"follow",tx:`➕ @${d.nickname||d.user} te siguió`},...p].slice(0,30));
-        setStats(p=>({...p,follows:p.follows+1}));
-        fireAction("Follow Alert","",d.nickname||d.user);
-      } else if(d.type==="like"){
+        setTapR(prev=>{
+          const ex=prev.find(u=>u.user===d.user);
+          const upd=ex?prev.map(u=>u.user===d.user?{...u,diamonds:u.diamonds+dm,gifts:u.gifts+1}:u)
+            :[...prev,{user:d.user,nickname:d.nickname||d.user,diamonds:dm,gifts:1}];
+          return upd.sort((a,b)=>b.diamonds-a.diamonds).slice(0,10);
+        });
+        fireAction("Gift Alert", d.giftName, d.nickname||d.user, d.giftCount);
+      } else if (d.type==="follow") {
+        setLog(p=>[{t:"follow",tx:`➕ @${d.nickname||d.user} te siguió`},...p].slice(0,50));
+        setStats(p=>({...p, follows:p.follows+1}));
+        fireAction("Follow Alert","", d.nickname||d.user);
+      } else if (d.type==="like") {
         const lc=d.likeCount||1;
-        setLog(p=>[{t:"like",tx:`❤️ @${d.user} × ${lc} likes`},...p].slice(0,30));
-        setStats(p=>({...p,likes:p.likes+lc}));setTotLike(p=>p+lc);
-        setLAnim(true);setTimeout(()=>setLAnim(false),300);
-        const hid=Date.now();setFh(p=>[...p,{id:hid,x:Math.random()*60+20}]);setTimeout(()=>setFh(p=>p.filter(h=>h.id!==hid)),1000);
-        setLikeR(prev=>{const ex=prev.find(u=>u.user===d.user);const upd=ex?prev.map(u=>u.user===d.user?{...u,count:u.count+lc}:u):[...prev,{user:d.user,nickname:d.user,count:lc}];return upd.sort((a,b)=>b.count-a.count).slice(0,5);});
-        fireAction("Like Alert","",d.user);
-      } else if(d.type==="sub"){
-        setLog(p=>[{t:"sub",tx:`⭐ @${d.nickname||d.user} se suscribió`},...p].slice(0,30));
-        fireAction("Sub Alert","",d.nickname||d.user);
-      } else if(d.type==="share"){
-        setLog(p=>[{t:"share",tx:`📤 @${d.nickname||d.user} compartió el LIVE`},...p].slice(0,30));
-        fireAction("Share Alert","",d.nickname||d.user);
+        setLog(p=>[{t:"like",tx:`❤️ ×${lc} likes`},...p].slice(0,50));
+        setStats(p=>({...p, likes:p.likes+lc}));
+        setTotLike(p=>p+lc);
+        setLAnim(true); setTimeout(()=>setLAnim(false),300);
+        const hid=Date.now();
+        setFh(p=>[...p,{id:hid,x:Math.random()*60+20}]);
+        setTimeout(()=>setFh(p=>p.filter(h=>h.id!==hid)),1200);
+        setLikeR(prev=>{
+          const ex=prev.find(u=>u.user===d.user);
+          const upd=ex?prev.map(u=>u.user===d.user?{...u,count:u.count+lc}:u)
+            :[...prev,{user:d.user,nickname:d.user,count:lc}];
+          return upd.sort((a,b)=>b.count-a.count).slice(0,10);
+        });
+        fireAction("Like Alert","", d.user);
+      } else if (d.type==="sub") {
+        setLog(p=>[{t:"sub",tx:`⭐ @${d.nickname||d.user} se suscribió`},...p].slice(0,50));
+        fireAction("Sub Alert","", d.nickname||d.user);
+      } else if (d.type==="share") {
+        setLog(p=>[{t:"share",tx:`📤 @${d.nickname||d.user} compartió`},...p].slice(0,50));
+        fireAction("Share Alert","", d.nickname||d.user);
       }
     });
-    sock.on("viewers",d=>setStats(p=>({...p,viewers:d.count})));
-    sock.on("disconnected",()=>setConn(false));
-    sock.on("error",d=>setLog(p=>[{t:"sys",tx:`⚠️ ${d.message}`},...p]));
-    return()=>sock.disconnect();
-  },[fireAction]);
 
-  useEffect(()=>{if(!conn2) return;const t=setInterval(()=>setDots(d=>d.length>=3?"":d+"."),400);return()=>clearInterval(t);},[conn2]);
+    sock.on("viewers",           d => setStats(p=>({...p, viewers:d.count})));
+    sock.on("tiktok_disconnected", d => {
+      setConn(false);
+      setLog(p=>[{t:"sys",tx:`⚠️ TikTok desconectado (@${d?.username||"?"}). Reconecta.`},...p].slice(0,50));
+    });
+    sock.on("tiktok_error", d => {
+      setLog(p=>[{t:"sys",tx:`⚠️ Error: ${d.message}`},...p].slice(0,50));
+    });
 
-  const applyVoice=()=>{actVR.current=ttsV;setActV(ttsV);sv("ttsVoice",ttsV);setVOk(true);setTimeout(()=>setVOk(false),2500);};
+    return () => sock.disconnect();
+  }, [fireAction]);
 
-  const connect=async()=>{
-    if(!tUser.trim()) return;
-    setConn2(true);
-    try{
-      const r=await fetch(`${SERVER}/connect`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:tUser})});
-      const d=await r.json();
-      if(d.success){setConn2(false);setConn(true);setStats({viewers:0,gifts:0,follows:0,messages:0,likes:0});setTotDia(0);setTotLike(0);setTapR([]);setLikeR([]);setLog([{t:"sys",tx:`✅ Conectado a @${tUser}`}]);}
-      else{setConn2(false);setLog([{t:"sys",tx:`⚠️ ${d.error||"¿Estás en LIVE?"}`}]);}
-    }catch(e){setConn2(false);setLog([{t:"sys",tx:"⚠️ Error al conectar"}]);}
+  /* ─── Conectar/Desconectar TikTok ──────────────── */
+  const connect = async () => {
+    if (!tUser.trim()) return;
+    setConn2(true); setConnErr("");
+    try {
+      const r = await fetch(`${SERVER}/connect`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({username: tUser.trim()}),
+      });
+      const d = await r.json();
+      if (d.success) {
+        setConn2(false); setConn(true);
+        setStats({viewers:0,gifts:0,follows:0,messages:0,likes:0});
+        setTotDia(0); setTotLike(0); setTapR([]); setLikeR([]);
+        setLog([{t:"sys",tx:`✅ Conectado a @${tUser}`}]);
+      } else {
+        setConn2(false);
+        setConnErr(d.error||"¿Estás en LIVE?");
+        setLog(p=>[{t:"sys",tx:`⚠️ ${d.error||"¿Estás en LIVE?"}`},...p]);
+      }
+    } catch(e) {
+      setConn2(false);
+      setConnErr("Sin respuesta del servidor");
+      setLog(p=>[{t:"sys",tx:"⚠️ Sin respuesta del servidor"},...p]);
+    }
   };
 
-  const disconnect=async()=>{await fetch(`${SERVER}/disconnect`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:tUser})}).catch(()=>{});setConn(false);setLog([]);setStats({viewers:0,gifts:0,follows:0,messages:0,likes:0});setTotDia(0);setTotLike(0);};
-
-  const logout=()=>{clr();setUser(null);};
-
-  if(!user) return <Login onLogin={u=>{sv("session",u);setUser(u);}}/>;
-
-  const TABS=[{id:"dashboard",icon:"⚡",l:"Dashboard"},{id:"acciones",icon:"🎬",l:"Acciones"},{id:"tts",icon:"🔊",l:"TTS"},{id:"ranking",icon:"🏆",l:"Ranking"},{id:"chat",icon:"💬",l:"Chat"}];
-  const LC={gift:"rgba(254,44,85,.1)",follow:"rgba(37,244,238,.1)",msg:"rgba(255,255,255,.03)",like:"rgba(254,44,85,.06)",sub:"rgba(139,92,246,.1)",share:"rgba(255,255,255,.05)",sys:"rgba(37,244,238,.07)"};
-  const LB={gift:"#fe2c55",follow:"#25f4ee",msg:"#252535",like:"#fe2c55",sub:"#8b5cf6",share:"#888",sys:"#25f4ee"};
-  const bCls=ev=>ev.startsWith("Follow")?"bf":ev.startsWith("Gift")?"bg":ev.startsWith("Like")?"bl":ev.startsWith("Sub")?"bs":"bsh";
-  const bIco=ev=>ev.startsWith("Follow")?"➕":ev.startsWith("Gift")?"🎁":ev.startsWith("Like")?"❤️":ev.startsWith("Sub")?"⭐":"📤";
-
-  const saveAction=form=>{
-    if(form.id&&actions.find(a=>a.id===form.id)){setActions(p=>p.map(a=>a.id===form.id?form:a));showT("✅ Acción actualizada");}
-    else{setActions(p=>[...p,{...form,id:Date.now()}]);showT("✅ Acción creada");}
-    setShowM(false);setEditA(null);
+  const disconnect = async () => {
+    await fetch(`${SERVER}/disconnect`,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({username:tUser})}).catch(()=>{});
+    setConn(false);
+    setLog([]); setStats({viewers:0,gifts:0,follows:0,messages:0,likes:0});
+    setTotDia(0); setTotLike(0);
   };
 
-  const testAction=async act=>{
-    if(act.soundUrl){try{const a=new Audio(act.soundUrl);a.volume=ttsVolR.current/100;a.play();}catch(e){}}
-    if(act.ttsOn&&act.ttsText){enqueueTTS(act.ttsText.replace(/@usuario/gi,"UsuarioPrueba"),actVR.current,ttsVolR.current/100);}
+  /* ─── Acciones CRUD ─────────────────────────────── */
+  const saveAction = (form) => {
+    if (form.id && actions.find(a=>a.id===form.id)) {
+      setActions(p=>p.map(a=>a.id===form.id?form:a));
+      showT("✅ Acción actualizada");
+    } else {
+      setActions(p=>[...p, {...form, id:Date.now()}]);
+      showT("✅ Acción creada");
+    }
+    setShowM(false); setEditA(null);
+  };
+
+  const deleteAction = (id) => {
+    setActions(p=>p.filter(a=>a.id!==id));
+    setDelConfirm(null);
+    showT("🗑️ Acción eliminada");
+  };
+
+  const testAction = (act) => {
+    if (act.soundData) playAudio(act.soundData, ttsVol/100);
+    if (act.ttsOn && act.ttsText) {
+      const text = act.ttsText.replace(/@usuario/gi,"UsuarioPrueba");
+      enqueueTTS(text, ttsMode==="elevenlabs"?ttsVoice:nativeVoice, ttsVol/100, ttsMode);
+    }
     showT(`▶ Probando: ${act.name}`);
   };
 
-  const C={background:"#12121e",border:"1px solid #1e1e2e",borderRadius:15,padding:16,marginBottom:13};
-  const lbl={display:"block",color:"#555",fontSize:10,fontWeight:700,letterSpacing:.8,textTransform:"uppercase",marginBottom:6};
-  const inp={width:"100%",background:"#0a0a0f",border:"1px solid #252535",borderRadius:9,padding:"10px 13px",color:"#fff",fontSize:13,outline:"none"};
+  /* ─── Render helpers ────────────────────────────── */
+  if (!user) return <Login onLogin={u=>{sv("session",u);setUser(u);}}/>;
 
-  const fActs=actions.filter(a=>a.name.toLowerCase().includes(searchQ.toLowerCase()));
+  const TABS = [
+    {id:"dashboard", icon:"⚡", l:"Dashboard"},
+    {id:"acciones",  icon:"🎬", l:"Acciones"},
+    {id:"tts",       icon:"🔊", l:"Voz & Audio"},
+    {id:"ranking",   icon:"🏆", l:"Ranking"},
+    {id:"chat",      icon:"💬", l:"Chat"},
+  ];
 
-  return <div style={{display:"flex",minHeight:"100vh",background:"#0a0a0f"}}>
-    {showM&&<ActModal action={editA} voiceId={actVR.current} vol={ttsVol} onSave={saveAction} onClose={()=>{setShowM(false);setEditA(null);}}/>}
-    {toast&&<div className="toast">{toast}</div>}
-    {sb&&<div onClick={()=>setSb(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",zIndex:40}}/>}
+  const LC = {gift:"rgba(254,44,85,.08)",follow:"rgba(37,244,238,.08)",msg:"rgba(255,255,255,.02)",
+    like:"rgba(254,44,85,.05)",sub:"rgba(139,92,246,.08)",share:"rgba(255,255,255,.04)",sys:"rgba(37,244,238,.06)"};
+  const LB = {gift:"#fe2c55",follow:"#25f4ee",msg:"#2a2a3a",like:"#fe2c55",sub:"#8b5cf6",share:"#666",sys:"#25f4ee"};
+  const bCls = ev=>ev.startsWith("Follow")?"bf":ev.startsWith("Gift")?"bg":ev.startsWith("Like")?"bl":ev.startsWith("Sub")?"bs":"bsh";
+  const bIco = ev=>ev.startsWith("Follow")?"➕":ev.startsWith("Gift")?"🎁":ev.startsWith("Like")?"❤️":ev.startsWith("Sub")?"⭐":"📤";
 
-    {/* Sidebar */}
-    <div style={{width:220,background:"#0d0d18",borderRight:"1px solid #1a1a28",display:"flex",flexDirection:"column",padding:"15px 11px",position:"fixed",top:0,bottom:0,left:0,zIndex:50,transform:sb?"translateX(0)":"translateX(-100%)",transition:"transform .3s ease"}}>
-      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:15,paddingLeft:3}}>
-        <div style={{width:28,height:28,borderRadius:7,background:"linear-gradient(135deg,#fe2c55,#25f4ee)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:14}}>T</div>
-        <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:17,letterSpacing:-.5}}>ik<span style={{color:"#fe2c55"}}>Panel</span></span>
-      </div>
-      <div style={{display:"flex",alignItems:"center",gap:8,background:"#1a1a28",borderRadius:9,padding:"8px 10px",marginBottom:9}}>
-        <div style={{width:28,height:28,borderRadius:"50%",flexShrink:0,background:"linear-gradient(135deg,#fe2c55,#25f4ee)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12}}>{user.avatar}</div>
-        <div style={{overflow:"hidden"}}><div style={{fontSize:12,fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{user.name}</div><div style={{fontSize:10,color:"#fe2c55",fontWeight:600,marginTop:1}}>{user.plan}</div></div>
-      </div>
-      <div style={{display:"flex",alignItems:"center",gap:6,background:conn?"rgba(37,244,238,.05)":"rgba(255,255,255,.02)",border:`1px solid ${conn?"rgba(37,244,238,.2)":"#1a1a28"}`,borderRadius:20,padding:"4px 10px",fontSize:10,color:conn?"#25f4ee":"#444",marginBottom:13,overflow:"hidden"}}>
-        <div className={conn?"ld":""} style={{width:5,height:5,borderRadius:"50%",flexShrink:0,background:conn?"#25f4ee":"#252535",boxShadow:conn?"0 0 7px #25f4ee":"none"}}/>
-        <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{conn?`@${tUser}`:"Sin conexión"}</span>
-      </div>
-      <nav style={{display:"flex",flexDirection:"column",gap:2,flex:1}}>
-        {TABS.map(t=><button key={t.id} onClick={()=>{setTab(t.id);setSb(false);}} style={{display:"flex",alignItems:"center",gap:8,background:tab===t.id?"rgba(254,44,85,.1)":"transparent",border:tab===t.id?"1px solid rgba(254,44,85,.18)":"1px solid transparent",borderRadius:8,padding:"9px 9px",color:tab===t.id?"#fff":"#555",cursor:"pointer",fontSize:12,fontWeight:tab===t.id?700:500,textAlign:"left"}}><span style={{fontSize:14}}>{t.icon}</span>{t.l}</button>)}
-      </nav>
-      <button onClick={logout} style={{background:"transparent",border:"1px solid #1a1a28",borderRadius:8,padding:"7px 9px",color:"#444",cursor:"pointer",fontSize:11,marginTop:5}}>Cerrar sesión</button>
-    </div>
+  const C   = {background:"#12121e",border:"1px solid #1e1e2e",borderRadius:14,padding:15,marginBottom:12};
+  const lbl = {display:"block",color:"#556",fontSize:9,fontWeight:700,letterSpacing:.8,textTransform:"uppercase",marginBottom:5};
+  const inp = {width:"100%",background:"#0a0a0f",border:"1px solid #252535",borderRadius:8,padding:"9px 12px",color:"#fff",fontSize:12,outline:"none"};
 
-    {/* Main */}
-    <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 13px",borderBottom:"1px solid #1a1a28",background:"#0a0a0f",position:"sticky",top:0,zIndex:30}}>
-        <div style={{display:"flex",alignItems:"center",gap:9}}>
-          <button onClick={()=>setSb(!sb)} style={{background:"#1a1a28",border:"1px solid #252535",borderRadius:7,width:31,height:31,cursor:"pointer",color:"#fff",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>☰</button>
-          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:14}}>{TABS.find(t=>t.id===tab)?.icon} {TABS.find(t=>t.id===tab)?.l}</div>
-        </div>
-        {conn&&<div style={{display:"flex",alignItems:"center",gap:5,background:"rgba(254,44,85,.1)",border:"1px solid rgba(254,44,85,.25)",borderRadius:20,padding:"3px 10px",color:"#fe2c55",fontWeight:800,fontSize:9,letterSpacing:1}}>
-          <div className="ld" style={{width:5,height:5,borderRadius:"50%",background:"#fe2c55",boxShadow:"0 0 7px #fe2c55"}}/>EN VIVO</div>}
-      </div>
+  const fActs = actions.filter(a=>a.name.toLowerCase().includes(searchQ.toLowerCase()));
 
-      <div style={{padding:13,flex:1,overflowY:"auto"}}>
+  return (
+    <div style={{display:"flex",minHeight:"100vh",background:"#0a0a0f"}}>
 
-        {/* ── DASHBOARD ── */}
-        {tab==="dashboard"&&<div className="ai">
-          <div style={C}>
-            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,marginBottom:11}}>🎯 Conectar al LIVE</div>
-            <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-              <div style={{display:"flex",alignItems:"center",flex:1,minWidth:120,background:"#0a0a0f",border:"1px solid #252535",borderRadius:9,overflow:"hidden"}}>
-                <span style={{color:"#fe2c55",fontWeight:800,padding:"0 9px",fontSize:14,flexShrink:0}}>@</span>
-                <input value={tUser} onChange={e=>setTUser(e.target.value)} placeholder="usuario_tiktok" disabled={conn||conn2} style={{flex:1,background:"transparent",border:"none",padding:"10px 5px 10px 0",color:"#fff",fontSize:12,outline:"none",minWidth:0}}/>
+      {/* Modales */}
+      {showM && (
+        <ActModal
+          action={editA}
+          ttsMode={ttsMode}
+          ttsVoiceId={ttsVoice}
+          ttsNativeVoice={nativeVoice}
+          vol={ttsVol}
+          onSave={saveAction}
+          onClose={()=>{setShowM(false);setEditA(null);}}
+        />
+      )}
+
+      {/* Confirm delete */}
+      {delConfirm && (
+        <div className="mo" onClick={()=>setDelConfirm(null)}>
+          <div className="mb" style={{maxWidth:320}} onClick={e=>e.stopPropagation()}>
+            <div style={{textAlign:"center",marginBottom:16}}>
+              <div style={{fontSize:32,marginBottom:8}}>🗑️</div>
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:15,marginBottom:6}}>
+                Eliminar acción
               </div>
-              {!conn
-                ?<button onClick={connect} disabled={conn2||!tUser} style={{background:(!conn2&&tUser)?"linear-gradient(135deg,#fe2c55,#ff6b81)":"#1e1e2e",border:"none",borderRadius:9,padding:"10px 15px",color:(!conn2&&tUser)?"#fff":"#444",fontWeight:700,cursor:(!conn2&&tUser)?"pointer":"not-allowed",fontSize:12,whiteSpace:"nowrap"}}>{conn2?`Conectando${dots}`:"Conectar"}</button>
-                :<button onClick={disconnect} style={{background:"rgba(254,44,85,.1)",border:"1px solid rgba(254,44,85,.3)",borderRadius:9,padding:"10px 15px",color:"#fe2c55",fontWeight:700,cursor:"pointer",fontSize:12,whiteSpace:"nowrap"}}>Desconectar</button>}
-            </div>
-            {conn2&&<div style={{height:3,background:"#1e1e2e",borderRadius:2,marginTop:9,overflow:"hidden"}}><div className="cf" style={{height:"100%",width:"50%",background:"linear-gradient(90deg,#25f4ee,#fe2c55)",borderRadius:2}}/></div>}
-          </div>
-
-          <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:9,marginBottom:13}}>
-            {[{l:"Espectadores",v:stats.viewers,ic:"👁️",c:"#25f4ee"},{l:"Regalos",v:stats.gifts,ic:"🎁",c:"#fe2c55"},{l:"Seguidores",v:stats.follows,ic:"➕",c:"#ffd700"},{l:"Mensajes",v:stats.messages,ic:"💬",c:"#a78bfa"}].map(s=><div key={s.l} style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:12,padding:13,textAlign:"center"}}>
-              <div style={{fontSize:18,marginBottom:4}}>{s.ic}</div>
-              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:20,color:s.c}}>{s.v.toLocaleString()}</div>
-              <div style={{color:"#444",fontSize:9,marginTop:3,fontWeight:600}}>{s.l}</div>
-            </div>)}
-          </div>
-
-          <div style={{...C,display:"flex",alignItems:"center",justifyContent:"space-between",position:"relative",overflow:"hidden"}}>
-            <div style={{display:"flex",alignItems:"center",gap:11}}>
-              <div className={lAnim?"hpa":""} style={{fontSize:28}}>❤️</div>
-              <div><div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:26,color:"#fe2c55",lineHeight:1}}>{stats.likes.toLocaleString()}</div><div style={{color:"#555",fontSize:9,fontWeight:600,marginTop:2}}>LIKES EN EL LIVE</div></div>
-            </div>
-            <div style={{textAlign:"right"}}><div style={{color:"#333",fontSize:9}}>💎 Diamantes</div><div style={{color:"#ffd700",fontWeight:800,fontSize:15}}>{totDia.toLocaleString()}</div></div>
-            {fh.map(h=><span key={h.id} className="fh" style={{left:`${h.x}%`,bottom:5}}>❤️</span>)}
-          </div>
-
-          <div style={C}>
-            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,marginBottom:9}}>📋 Actividad en tiempo real</div>
-            <div style={{background:"#0a0a0f",borderRadius:9,padding:9,height:200,overflowY:"auto",display:"flex",flexDirection:"column",gap:3}}>
-              {log.length===0?<div style={{color:"#333",fontSize:11,textAlign:"center",marginTop:75}}>{conn?"Esperando actividad...":"Conecta tu LIVE"}</div>
-                :log.map((item,i)=><div key={i} style={{fontSize:10,padding:"5px 8px",borderRadius:5,background:LC[item.t]||"rgba(255,255,255,.03)",borderLeft:`2px solid ${LB[item.t]||"#252535"}`,color:LB[item.t]||"#888"}}>{item.tx}</div>)}
-            </div>
-          </div>
-        </div>}
-
-        {/* ── ACCIONES ── */}
-        {tab==="acciones"&&<div className="ai">
-          <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:13,flexWrap:"wrap"}}>
-            <button onClick={()=>{setEditA(null);setShowM(true);}} style={{background:"linear-gradient(135deg,#fe2c55,#ff6b81)",border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12}}>+ Nueva Acción</button>
-            <div style={{display:"flex",alignItems:"center",gap:6,background:"#12121e",border:"1px solid #1e1e2e",borderRadius:20,padding:"5px 12px",cursor:"pointer"}} onClick={()=>setAlertsOn(!alertsOn)}>
-              <div className={alertsOn?"ld":""} style={{width:7,height:7,borderRadius:"50%",background:alertsOn?"#25f4ee":"#444",boxShadow:alertsOn?"0 0 7px #25f4ee":"none"}}/>
-              <span style={{fontSize:11,fontWeight:700,color:alertsOn?"#25f4ee":"#555"}}>{alertsOn?"Habilitado":"Deshabilitado"}</span>
-            </div>
-            <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍 Buscar acción..." style={{flex:1,minWidth:100,background:"#12121e",border:"1px solid #1e1e2e",borderRadius:8,padding:"7px 11px",color:"#fff",fontSize:11,outline:"none"}}/>
-          </div>
-
-          <div style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:14,overflow:"hidden"}}>
-            {/* Header tabla */}
-            <div className="tr" style={{background:"#0d0d18",borderBottom:"1px solid #1e1e2e"}}>
-              {["","Nombre","Evento","Dur.","🎵","TTS",""].map((h,i)=><div key={i} className="th">{h}</div>)}
-            </div>
-
-            {fActs.length===0&&<div style={{textAlign:"center",padding:"36px 16px",color:"#333",fontSize:12}}>{searchQ?"Sin resultados":"Crea tu primera acción ↑"}</div>}
-
-            {fActs.map((act)=><div key={act.id} className={`tr ${act.enabled?"":"dis"}`}>
-              <button className={`it ${act.enabled?"on":""}`} onClick={()=>setActions(p=>p.map(a=>a.id===act.id?{...a,enabled:!a.enabled}:a))}/>
-              <div>
-                <div style={{color:act.enabled?"#fff":"#666",fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{act.name}</div>
-                <div style={{fontSize:9,color:"#444",marginTop:1,fontFamily:"'JetBrains Mono',monospace"}}>{act.event==="Gift Alert"?`🎁 ${act.giftName} ×${act.minCount}`:act.event}</div>
+              <div style={{color:"#555",fontSize:12}}>
+                ¿Eliminar <span style={{color:"#fff",fontWeight:700}}>
+                  "{actions.find(a=>a.id===delConfirm)?.name}"
+                </span>? No se puede deshacer.
               </div>
-              <div><span className={`badge ${bCls(act.event)}`}>{bIco(act.event)} {act.event.replace(" Alert","")}</span></div>
-              <div style={{fontSize:10,color:"#555",fontFamily:"'JetBrains Mono',monospace"}}>{act.duration}s</div>
-              <div style={{textAlign:"center",fontSize:13}}>{act.soundName?<span style={{color:"#25f4ee"}}>🎵</span>:<span style={{color:"#252535"}}>—</span>}</div>
-              <div style={{textAlign:"center",fontSize:12}}>{act.ttsOn&&act.ttsText?<span style={{color:"#25f4ee"}}>🔊</span>:<span style={{color:"#252535"}}>—</span>}</div>
-              <div style={{display:"flex",gap:3,justifyContent:"flex-end"}}>
-                {[{ico:"▶",fn:()=>testAction(act),c:"#25f4ee"},{ico:"✏️",fn:()=>{setEditA(act);setShowM(true);},c:"#aaa"},{ico:"🗑️",fn:()=>{if(confirm(`¿Eliminar "${act.name}"?`)){setActions(p=>p.filter(a=>a.id!==act.id));showT("🗑️ Eliminada");}},c:"#fe2c55"}].map((b,i)=><button key={i} onClick={b.fn} style={{background:"transparent",border:"1px solid #1e1e2e",borderRadius:5,width:23,height:23,cursor:"pointer",color:b.c,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10}}>{b.ico}</button>)}
-              </div>
-            </div>)}
-          </div>
-          <div style={{background:"rgba(37,244,238,.03)",border:"1px solid rgba(37,244,238,.1)",borderRadius:9,padding:"10px 13px",color:"#444",fontSize:10,lineHeight:1.7,marginTop:11}}>
-            ⚠️ Los MP3 se pierden al recargar la página — súbelos de nuevo después de actualizar. El TTS usa ElevenLabs con la voz activa en la pestaña TTS.
-          </div>
-        </div>}
-
-        {/* ── TTS ── */}
-        {tab==="tts"&&<div className="ai">
-          <div style={C}>
-            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,marginBottom:15}}>🔊 Texto a Voz — ElevenLabs</div>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
-              <div><div style={{fontSize:13,fontWeight:600}}>TTS global de comentarios</div><div style={{fontSize:10,color:"#555",marginTop:2}}>Lee los comentarios del chat en vivo</div></div>
-              <Toggle on={ttsOn} onChange={()=>setTtsOn(!ttsOn)}/>
             </div>
-
-            <div style={{marginBottom:9}}>
-              <label style={lbl}>Seleccionar voz {ldV&&<span style={{color:"#25f4ee"}}>⏳</span>}</label>
-              <select value={ttsV} onChange={e=>setTtsV(e.target.value)} disabled={!ttsOn} style={{...inp,cursor:"pointer",marginBottom:9}}>
-                {voices.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}
-              </select>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"rgba(37,244,238,.05)",border:"1px solid rgba(37,244,238,.15)",borderRadius:9,padding:"9px 13px",marginBottom:9}}>
-                <div><div style={{color:"#444",fontSize:9,fontWeight:600,letterSpacing:.5}}>VOZ ACTIVA EN EL LIVE</div><div style={{color:"#25f4ee",fontSize:12,fontWeight:700,marginTop:2}}>{voices.find(v=>v.id===actV)?.name||"Bella"}</div></div>
-                <div className="ld" style={{width:7,height:7,borderRadius:"50%",background:"#25f4ee",boxShadow:"0 0 7px #25f4ee"}}/>
-              </div>
-              <button onClick={applyVoice} disabled={!ttsOn} style={{width:"100%",background:!ttsOn?"#1a1a28":ttsV===actV?"rgba(37,244,238,.1)":"linear-gradient(135deg,#fe2c55,#ff6b81)",border:ttsV===actV?"1px solid rgba(37,244,238,.3)":"none",borderRadius:9,padding:"11px",color:!ttsOn?"#444":ttsV===actV?"#25f4ee":"#fff",fontWeight:700,cursor:!ttsOn?"not-allowed":"pointer",fontSize:13,marginBottom:15}}>
-                {vOk?"✅ ¡Voz aplicada!":ttsV===actV?"✓ Esta voz ya está activa":"🎙️ Aplicar voz al LIVE"}
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setDelConfirm(null)}
+                style={{flex:1,background:"transparent",border:"1px solid #252535",borderRadius:9,
+                  padding:"10px",color:"#555",fontWeight:600,cursor:"pointer",fontSize:12}}>
+                Cancelar
+              </button>
+              <button onClick={()=>deleteAction(delConfirm)}
+                style={{flex:1,background:"rgba(254,44,85,.15)",border:"1px solid rgba(254,44,85,.35)",
+                  borderRadius:9,padding:"10px",color:"#fe2c55",fontWeight:700,cursor:"pointer",fontSize:12}}>
+                Sí, eliminar
               </button>
             </div>
-
-            <div style={{marginBottom:14}}>
-              <label style={lbl}>Volumen global: {ttsVol}%</label>
-              <input type="range" min="0" max="100" value={ttsVol} onChange={e=>setTtsVol(Number(e.target.value))} style={{width:"100%",accentColor:"#fe2c55"}}/>
-            </div>
-
-            <div style={{background:"rgba(37,244,238,.04)",border:"1px solid rgba(37,244,238,.1)",borderRadius:9,padding:"10px 13px",color:"#555",fontSize:11,lineHeight:1.7}}>
-              💡 El TTS de comentarios se activa aquí. Los mensajes por regalo/seguidor/like se configuran individualmente en <strong style={{color:"#fe2c55"}}>Acciones</strong>.
-            </div>
           </div>
-          <div style={C}>
-            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,marginBottom:11}}>🎤 Probar voz activa</div>
-            <input id="ttsT" placeholder="Escribe algo para probar la voz..." style={{...inp,marginBottom:9}}/>
-            <button disabled={!ttsOn} onClick={()=>{const t=document.getElementById("ttsT").value||"Hola, esto es TikPanel con ElevenLabs";enqueueTTS(t,actVR.current,ttsVol/100);}}
-              style={{width:"100%",background:ttsOn?"rgba(254,44,85,.1)":"transparent",border:"1px solid rgba(254,44,85,.2)",borderRadius:9,padding:"10px",color:ttsOn?"#fe2c55":"#333",fontWeight:700,cursor:ttsOn?"pointer":"not-allowed",fontSize:12}}>
-              ▶ Reproducir con voz activa
+        </div>
+      )}
+
+      {toast && <div className="toast">{toast}</div>}
+      {sb && <div onClick={()=>setSb(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:40}}/>}
+
+      {/* Sidebar */}
+      <div style={{width:215,background:"#0d0d18",borderRight:"1px solid #1a1a28",display:"flex",
+        flexDirection:"column",padding:"13px 10px",position:"fixed",top:0,bottom:0,left:0,zIndex:50,
+        transform:sb?"translateX(0)":"translateX(-100%)",transition:"transform .28s ease"}}>
+        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:14,paddingLeft:2}}>
+          <div style={{width:27,height:27,borderRadius:7,background:"linear-gradient(135deg,#fe2c55,#25f4ee)",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:13}}>T</div>
+          <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:16,letterSpacing:-.5}}>
+            ik<span style={{color:"#fe2c55"}}>Panel</span>
+          </span>
+        </div>
+
+        {/* User badge */}
+        <div style={{display:"flex",alignItems:"center",gap:7,background:"#1a1a28",
+          borderRadius:9,padding:"7px 9px",marginBottom:9}}>
+          <div style={{width:26,height:26,borderRadius:"50%",flexShrink:0,
+            background:"linear-gradient(135deg,#fe2c55,#25f4ee)",
+            display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:11}}>
+            {user.avatar}
+          </div>
+          <div style={{overflow:"hidden"}}>
+            <div style={{fontSize:11,fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{user.name}</div>
+            <div style={{fontSize:9,color:"#fe2c55",fontWeight:600,marginTop:1}}>{user.plan}</div>
+          </div>
+        </div>
+
+        {/* Estado conexión */}
+        <div style={{display:"flex",alignItems:"center",gap:6,
+          background:conn?"rgba(37,244,238,.05)":"rgba(255,255,255,.02)",
+          border:`1px solid ${conn?"rgba(37,244,238,.18)":"#1a1a28"}`,
+          borderRadius:20,padding:"4px 9px",fontSize:9,color:conn?"#25f4ee":"#444",marginBottom:12,overflow:"hidden"}}>
+          <div className={conn?"ld":""} style={{width:5,height:5,borderRadius:"50%",flexShrink:0,
+            background:conn?"#25f4ee":"#252535",boxShadow:conn?"0 0 7px #25f4ee":"none"}}/>
+          <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            {conn ? `@${tUser}` : "Sin conexión"}
+          </span>
+        </div>
+
+        <nav style={{display:"flex",flexDirection:"column",gap:2,flex:1}}>
+          {TABS.map(t => (
+            <button key={t.id} onClick={()=>{setTab(t.id);setSb(false);}}
+              style={{display:"flex",alignItems:"center",gap:7,
+                background:tab===t.id?"rgba(254,44,85,.1)":"transparent",
+                border:tab===t.id?"1px solid rgba(254,44,85,.18)":"1px solid transparent",
+                borderRadius:8,padding:"8px 8px",color:tab===t.id?"#fff":"#555",
+                cursor:"pointer",fontSize:11,fontWeight:tab===t.id?700:500,textAlign:"left"}}>
+              <span style={{fontSize:13}}>{t.icon}</span>{t.l}
             </button>
-          </div>
-        </div>}
+          ))}
+        </nav>
 
-        {/* ── RANKING ── */}
-        {tab==="ranking"&&<div className="ai">
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:13}}>
-            {[{ic:"💎",v:totDia,l:"DIAMANTES TOTALES",c:"#ffd700"},{ic:"❤️",v:totLike,l:"LIKES TOTALES",c:"#fe2c55"}].map(s=><div key={s.l} style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:12,padding:13,textAlign:"center"}}>
-              <div style={{fontSize:18,marginBottom:4}}>{s.ic}</div>
-              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:20,color:s.c}}>{s.v.toLocaleString()}</div>
-              <div style={{color:"#444",fontSize:9,fontWeight:600,marginTop:3}}>{s.l}</div>
-            </div>)}
+        <button onClick={()=>{localStorage.removeItem("tp_session");setUser(null);}}
+          style={{background:"transparent",border:"1px solid #1a1a28",borderRadius:7,
+            padding:"6px 8px",color:"#444",cursor:"pointer",fontSize:10,marginTop:5}}>
+          Cerrar sesión
+        </button>
+      </div>
+
+      {/* Main */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0}}>
+
+        {/* Topbar */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+          padding:"9px 12px",borderBottom:"1px solid #1a1a28",background:"#0a0a0f",
+          position:"sticky",top:0,zIndex:30}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <button onClick={()=>setSb(!sb)}
+              style={{background:"#1a1a28",border:"1px solid #252535",borderRadius:6,
+                width:29,height:29,cursor:"pointer",color:"#fff",fontSize:13,
+                display:"flex",alignItems:"center",justifyContent:"center"}}>☰</button>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:13}}>
+              {TABS.find(t=>t.id===tab)?.icon} {TABS.find(t=>t.id===tab)?.l}
+            </div>
           </div>
-          {[{title:"🎁 Top Tap Tap",data:tapR,key:"diamonds",color:"#ffd700",icon:"💎",empty:"Esperando regalos..."},
-            {title:"❤️ Top Likes",  data:likeR,key:"count",   color:"#fe2c55",icon:"❤️",empty:"Esperando likes..."}
-          ].map(({title,data,key,color,icon,empty})=><div key={title} style={C}>
-            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,marginBottom:12}}>{title}</div>
-            {data.length===0?<div style={{textAlign:"center",padding:"18px 0",color:"#333",fontSize:11}}>{conn?empty:"Conecta tu LIVE"}</div>
-              :data.map((item,i)=>{
-                const medals=["🥇","🥈","🥉","4️⃣","5️⃣"];const max=data[0][key]||1;const pct=Math.round((item[key]/max)*100);
-                return <div key={item.user} style={{marginBottom:9}}>
-                  <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
-                    <span style={{fontSize:14,flexShrink:0}}>{medals[i]}</span>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <span style={{color:"#fff",fontSize:11,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>@{item.nickname}</span>
-                        <span style={{color,fontWeight:800,fontSize:11,flexShrink:0,marginLeft:7}}>{icon} {item[key].toLocaleString()}</span>
+          {conn && (
+            <div style={{display:"flex",alignItems:"center",gap:4,
+              background:"rgba(254,44,85,.1)",border:"1px solid rgba(254,44,85,.2)",
+              borderRadius:20,padding:"3px 9px",color:"#fe2c55",fontWeight:800,fontSize:8,letterSpacing:1}}>
+              <div className="ld" style={{width:4,height:4,borderRadius:"50%",
+                background:"#fe2c55",boxShadow:"0 0 6px #fe2c55"}}/>EN VIVO
+            </div>
+          )}
+        </div>
+
+        {/* Contenido */}
+        <div style={{padding:12,flex:1,overflowY:"auto"}}>
+
+          {/* ── DASHBOARD ── */}
+          {tab==="dashboard" && (
+            <div className="ai">
+              {/* Conectar */}
+              <div style={C}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:12,marginBottom:10}}>
+                  🎯 Conectar al LIVE
+                </div>
+                <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+                  <div style={{display:"flex",alignItems:"center",flex:1,minWidth:120,
+                    background:"#0a0a0f",border:"1px solid #252535",borderRadius:8,overflow:"hidden"}}>
+                    <span style={{color:"#fe2c55",fontWeight:800,padding:"0 9px",fontSize:13,flexShrink:0}}>@</span>
+                    <input value={tUser} onChange={e=>setTUser(e.target.value.replace("@",""))}
+                      onKeyDown={e=>e.key==="Enter"&&!conn&&!conn2&&connect()}
+                      placeholder="usuario_tiktok" disabled={conn||conn2}
+                      style={{flex:1,background:"transparent",border:"none",padding:"9px 5px 9px 0",
+                        color:"#fff",fontSize:12,outline:"none",minWidth:0}}/>
+                  </div>
+                  {!conn
+                    ? <button onClick={connect} disabled={conn2||!tUser.trim()}
+                        style={{background:(conn2||!tUser.trim())?"#1e1e2e":"linear-gradient(135deg,#fe2c55,#ff6b81)",
+                          border:"none",borderRadius:8,padding:"9px 14px",
+                          color:(conn2||!tUser.trim())?"#444":"#fff",
+                          fontWeight:700,cursor:(conn2||!tUser.trim())?"not-allowed":"pointer",
+                          fontSize:12,whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:5}}>
+                        {conn2 ? <><span className="spinner"/>{`Conectando${dots}`}</> : "Conectar"}
+                      </button>
+                    : <button onClick={disconnect}
+                        style={{background:"rgba(254,44,85,.1)",border:"1px solid rgba(254,44,85,.3)",
+                          borderRadius:8,padding:"9px 14px",color:"#fe2c55",fontWeight:700,
+                          cursor:"pointer",fontSize:12,whiteSpace:"nowrap"}}>
+                        Desconectar
+                      </button>
+                  }
+                </div>
+                {conn2 && (
+                  <div style={{height:3,background:"#1e1e2e",borderRadius:2,marginTop:8,overflow:"hidden"}}>
+                    <div className="cf" style={{height:"100%",width:"50%",
+                      background:"linear-gradient(90deg,#25f4ee,#fe2c55)",borderRadius:2}}/>
+                  </div>
+                )}
+                {connErr && (
+                  <div style={{marginTop:8,background:"rgba(254,44,85,.06)",border:"1px solid rgba(254,44,85,.15)",
+                    borderRadius:7,padding:"7px 10px",color:"#fe2c55",fontSize:11}}>
+                    ⚠️ {connErr} — ¿El usuario está en LIVE ahora?
+                  </div>
+                )}
+              </div>
+
+              {/* Stats */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:9,marginBottom:12}}>
+                {[
+                  {l:"Espectadores",v:stats.viewers,  ic:"👁️", c:"#25f4ee"},
+                  {l:"Regalos",     v:stats.gifts,    ic:"🎁", c:"#fe2c55"},
+                  {l:"Seguidores",  v:stats.follows,  ic:"➕", c:"#ffd700"},
+                  {l:"Mensajes",    v:stats.messages, ic:"💬", c:"#a78bfa"},
+                ].map(s=>(
+                  <div key={s.l} style={{background:"#12121e",border:"1px solid #1e1e2e",
+                    borderRadius:12,padding:12,textAlign:"center"}}>
+                    <div style={{fontSize:16,marginBottom:3}}>{s.ic}</div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:19,color:s.c}}>
+                      {s.v.toLocaleString()}
+                    </div>
+                    <div style={{color:"#444",fontSize:9,marginTop:2,fontWeight:600}}>{s.l}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Likes card */}
+              <div style={{...C,display:"flex",alignItems:"center",justifyContent:"space-between",
+                position:"relative",overflow:"hidden"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div className={lAnim?"hpa":""} style={{fontSize:26}}>❤️</div>
+                  <div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:24,
+                      color:"#fe2c55",lineHeight:1}}>{stats.likes.toLocaleString()}</div>
+                    <div style={{color:"#555",fontSize:8,fontWeight:700,marginTop:2,letterSpacing:.5}}>LIKES EN EL LIVE</div>
+                  </div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{color:"#333",fontSize:9}}>💎 Diamantes</div>
+                  <div style={{color:"#ffd700",fontWeight:800,fontSize:14}}>{totDia.toLocaleString()}</div>
+                </div>
+                {fh.map(h=><span key={h.id} className="fh" style={{left:`${h.x}%`,bottom:4}}>❤️</span>)}
+              </div>
+
+              {/* Log */}
+              <div style={C}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:12,marginBottom:8}}>
+                  📋 Actividad en tiempo real
+                </div>
+                <div style={{background:"#0a0a0f",borderRadius:8,padding:8,height:195,
+                  overflowY:"auto",display:"flex",flexDirection:"column",gap:2}}>
+                  {log.length===0
+                    ? <div style={{color:"#333",fontSize:11,textAlign:"center",marginTop:70}}>
+                        {conn?"Esperando actividad...":"Conecta tu LIVE"}
                       </div>
-                      <div style={{height:3,background:"#1a1a28",borderRadius:2,marginTop:3,overflow:"hidden"}}>
-                        <div style={{height:"100%",width:`${pct}%`,borderRadius:2,transition:"width .5s",background:key==="count"?"linear-gradient(90deg,#fe2c55,#ff6b81)":i===0?"linear-gradient(90deg,#ffd700,#ffaa00)":i===1?"linear-gradient(90deg,#ccc,#888)":"#2a2a3a"}}/>
-                      </div>
+                    : log.map((item,i)=>(
+                        <div key={i} style={{fontSize:10,padding:"4px 7px",borderRadius:5,
+                          background:LC[item.t]||"rgba(255,255,255,.02)",
+                          borderLeft:`2px solid ${LB[item.t]||"#252535"}`,
+                          color:LB[item.t]||"#888"}}>
+                          {item.tx}
+                        </div>
+                      ))
+                  }
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── ACCIONES ── */}
+          {tab==="acciones" && (
+            <div className="ai">
+              {/* Toolbar */}
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+                <button onClick={()=>{setEditA(null);setShowM(true);}}
+                  style={{background:"linear-gradient(135deg,#fe2c55,#ff6b81)",border:"none",
+                    borderRadius:7,padding:"7px 13px",color:"#fff",fontWeight:700,
+                    cursor:"pointer",fontSize:11,whiteSpace:"nowrap"}}>
+                  + Nueva
+                </button>
+                <div style={{display:"flex",alignItems:"center",gap:5,background:"#12121e",
+                  border:"1px solid #1e1e2e",borderRadius:20,padding:"5px 11px",cursor:"pointer"}}
+                  onClick={()=>setAlertsOn(!alertsOn)}>
+                  <div className={alertsOn?"ld":""} style={{width:6,height:6,borderRadius:"50%",
+                    background:alertsOn?"#25f4ee":"#444",boxShadow:alertsOn?"0 0 6px #25f4ee":"none"}}/>
+                  <span style={{fontSize:10,fontWeight:700,color:alertsOn?"#25f4ee":"#555"}}>
+                    {alertsOn?"Alertas ON":"Alertas OFF"}
+                  </span>
+                </div>
+                <input value={searchQ} onChange={e=>setSearchQ(e.target.value)}
+                  placeholder="🔍 Buscar..." style={{flex:1,minWidth:90,background:"#12121e",
+                    border:"1px solid #1e1e2e",borderRadius:7,padding:"6px 10px",
+                    color:"#fff",fontSize:11,outline:"none"}}/>
+              </div>
+
+              {/* Tabla */}
+              <div style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:13,overflow:"hidden"}}>
+                <div className="tr" style={{background:"#0d0d18",borderBottom:"1px solid #1e1e2e"}}>
+                  {["","Nombre","Evento","Seg","🎵","🔊",""].map((h,i)=>(
+                    <div key={i} className="th">{h}</div>
+                  ))}
+                </div>
+
+                {fActs.length===0 && (
+                  <div style={{textAlign:"center",padding:"30px 16px",color:"#333",fontSize:11}}>
+                    {searchQ ? "Sin resultados" : "Crea tu primera acción ↑"}
+                  </div>
+                )}
+
+                {fActs.map(act => (
+                  <div key={act.id} className={`tr ${act.enabled?"":"dis"}`}>
+                    <button className={`it ${act.enabled?"on":""}`}
+                      onClick={()=>setActions(p=>p.map(a=>a.id===act.id?{...a,enabled:!a.enabled}:a))}/>
+                    <div style={{minWidth:0}}>
+                      <div style={{color:act.enabled?"#fff":"#555",fontSize:11,fontWeight:600,
+                        overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{act.name}</div>
+                      {act.event==="Gift Alert" && (
+                        <div style={{fontSize:8,color:"#444",marginTop:1,fontFamily:"'JetBrains Mono',monospace"}}>
+                          {act.giftName}×{act.minCount}
+                        </div>
+                      )}
+                    </div>
+                    <div><span className={`badge ${bCls(act.event)}`}>{bIco(act.event)} {act.event.replace(" Alert","")}</span></div>
+                    <div style={{fontSize:9,color:"#555",fontFamily:"'JetBrains Mono',monospace"}}>{act.duration}s</div>
+                    <div style={{textAlign:"center",fontSize:12}}>
+                      {act.soundName ? <span style={{color:"#25f4ee"}}>✓</span> : <span style={{color:"#1e1e2e"}}>—</span>}
+                    </div>
+                    <div style={{textAlign:"center",fontSize:11}}>
+                      {act.ttsOn && act.ttsText ? <span style={{color:"#25f4ee"}}>✓</span> : <span style={{color:"#1e1e2e"}}>—</span>}
+                    </div>
+                    <div style={{display:"flex",gap:3,justifyContent:"flex-end"}}>
+                      <IBtn ico="▶" onClick={()=>testAction(act)} color="#25f4ee" title="Probar"/>
+                      <IBtn ico="✏️" onClick={()=>{setEditA(act);setShowM(true);}} color="#aaa" title="Editar"/>
+                      <IBtn ico="🗑" onClick={()=>setDelConfirm(act.id)} color="#fe2c55" title="Eliminar"/>
                     </div>
                   </div>
-                </div>;
-              })}
-          </div>)}
-        </div>}
+                ))}
+              </div>
 
-        {/* ── CHAT BOT ── */}
-        {tab==="chat"&&<div className="ai">
-          <div style={C}>
-            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,marginBottom:11}}>💬 Chat Bot Automático</div>
-            <div style={{background:"rgba(37,244,238,.04)",border:"1px solid rgba(37,244,238,.1)",borderRadius:9,padding:"10px 13px",color:"#555",fontSize:11,lineHeight:1.7,marginBottom:13}}>
-              💡 El bot responde cuando alguien escribe un comando en tu LIVE.
+              <div style={{background:"rgba(37,244,238,.03)",border:"1px solid rgba(37,244,238,.08)",
+                borderRadius:8,padding:"9px 12px",color:"#444",fontSize:10,lineHeight:1.7,marginTop:10}}>
+                💾 Los audios ahora se guardan en base64 — <span style={{color:"#25f4ee"}}>no se pierden al recargar</span>.
+                El TTS usa la voz configurada en la pestaña <strong style={{color:"#fe2c55"}}>Voz & Audio</strong>.
+              </div>
             </div>
-            {[{t:"!hola",r:"¡Hola! Bienvenido al LIVE de Luz Álva 🎉"},{t:"!precio",r:"Revisa el link en mi bio 👆"},{t:"!redes",r:"Sígueme en todas mis redes 📱"}].map((cmd,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:9,background:"#0a0a0f",borderRadius:8,padding:"10px 12px",marginBottom:7}}>
-              <span style={{color:"#25f4ee",fontWeight:700,fontSize:11,minWidth:55,fontFamily:"'JetBrains Mono',monospace"}}>{cmd.t}</span>
-              <span style={{color:"#333"}}>→</span>
-              <span style={{color:"#555",fontSize:11,flex:1}}>{cmd.r}</span>
-            </div>)}
-            <button style={{background:"rgba(254,44,85,.07)",border:"1px dashed rgba(254,44,85,.3)",borderRadius:8,padding:"9px",color:"#fe2c55",fontWeight:700,cursor:"pointer",fontSize:12,width:"100%",marginTop:2}}>+ Añadir comando</button>
-          </div>
-        </div>}
+          )}
 
-      </div>
+          {/* ── VOZ & AUDIO ── */}
+          {tab==="tts" && (
+            <div className="ai">
+              {/* Motor TTS */}
+              <div style={C}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:12,marginBottom:12}}>
+                  🔊 Motor de Texto a Voz
+                </div>
+
+                {/* Toggle global */}
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,
+                  background:"#0a0a0f",borderRadius:8,padding:"10px 12px",
+                  border:`1px solid ${ttsOn?"rgba(37,244,238,.2)":"#1e1e2e"}`}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:600}}>TTS de comentarios</div>
+                    <div style={{fontSize:9,color:"#555",marginTop:1}}>Lee automáticamente los mensajes del chat</div>
+                  </div>
+                  <Toggle on={ttsOn} onChange={()=>setTtsOn(!ttsOn)}/>
+                </div>
+
+                {/* Selector de motor */}
+                <label style={lbl}>Motor de voz</label>
+                <div style={{display:"flex",gap:7,marginBottom:14}}>
+                  <button className={`mode-btn ${ttsMode==="native"?"act":""}`}
+                    onClick={()=>setTtsMode("native")}>
+                    🌐 Navegador<br/><span style={{fontSize:8,fontWeight:400,opacity:.7}}>Gratis, sin API</span>
+                  </button>
+                  <button className={`mode-btn ${ttsMode==="elevenlabs"?"act":""}`}
+                    onClick={()=>setTtsMode("elevenlabs")}>
+                    ⚡ ElevenLabs<br/><span style={{fontSize:8,fontWeight:400,opacity:.7}}>Alta calidad</span>
+                  </button>
+                </div>
+
+                {/* Voz nativa */}
+                {ttsMode==="native" && (
+                  <div style={{marginBottom:12}}>
+                    <label style={lbl}>Voz del navegador</label>
+                    {nativeVoices.length===0
+                      ? <div style={{color:"#555",fontSize:11,padding:"8px 12px",background:"#0a0a0f",
+                          border:"1px solid #252535",borderRadius:8}}>
+                          Cargando voces del sistema...
+                        </div>
+                      : <select value={nativeVoice} onChange={e=>setNativeVoice(e.target.value)}
+                          style={{...inp,cursor:"pointer"}}>
+                          {nativeVoices.map(v=>(
+                            <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>
+                          ))}
+                        </select>
+                    }
+                    <div style={{color:"#444",fontSize:9,marginTop:5}}>
+                      💡 Funciona sin internet ni configuración. Calidad depende del sistema operativo.
+                    </div>
+                  </div>
+                )}
+
+                {/* ElevenLabs */}
+                {ttsMode==="elevenlabs" && (
+                  <div style={{marginBottom:12}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:5}}>
+                      <label style={{...lbl,marginBottom:0}}>Voz ElevenLabs</label>
+                      {elOk===false && (
+                        <span style={{fontSize:9,color:"#fe2c55",fontWeight:600}}>⚠️ API Error</span>
+                      )}
+                      {elOk===true && (
+                        <span style={{fontSize:9,color:"#25f4ee",fontWeight:600}}>✓ Conectado</span>
+                      )}
+                    </div>
+                    <select value={ttsVoice} onChange={e=>setTtsVoice(e.target.value)}
+                      style={{...inp,cursor:"pointer",marginBottom:8}}>
+                      {elVoices.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}
+                    </select>
+                    <div style={{color:"#444",fontSize:9}}>
+                      💡 Requiere créditos en ElevenLabs. Si falla, cambia a motor Navegador.
+                    </div>
+                  </div>
+                )}
+
+                {/* Volumen */}
+                <div style={{marginBottom:12}}>
+                  <label style={lbl}>Volumen global: {ttsVol}%</label>
+                  <input type="range" min="0" max="100" value={ttsVol}
+                    onChange={e=>setTtsVol(Number(e.target.value))}
+                    style={{width:"100%",accentColor:"#fe2c55"}}/>
+                </div>
+              </div>
+
+              {/* Probar TTS */}
+              <div style={C}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:12,marginBottom:10}}>
+                  🎤 Probar voz
+                </div>
+                <textarea id="ttsT" placeholder="Escribe algo para probar..."
+                  style={{...inp,resize:"vertical",minHeight:55,marginBottom:8}}
+                  defaultValue="Hola, bienvenido al LIVE"/>
+                <button disabled={!ttsOn} onClick={()=>{
+                    const t=(document.getElementById("ttsT")?.value||"Hola").trim();
+                    if (!t) return;
+                    enqueueTTS(t, ttsMode==="elevenlabs"?ttsVoice:nativeVoice, ttsVol/100, ttsMode);
+                  }}
+                  style={{width:"100%",background:ttsOn?"rgba(254,44,85,.1)":"transparent",
+                    border:"1px solid rgba(254,44,85,.2)",borderRadius:8,padding:"9px",
+                    color:ttsOn?"#fe2c55":"#333",fontWeight:700,
+                    cursor:ttsOn?"pointer":"not-allowed",fontSize:12}}>
+                  ▶ Reproducir
+                </button>
+                <button style={{width:"100%",background:"transparent",border:"1px solid #1e1e2e",
+                  borderRadius:8,padding:"7px",color:"#444",cursor:"pointer",fontSize:11,marginTop:6}}
+                  onClick={()=>{window.speechSynthesis?.cancel();ttsQueue.length=0;ttsActive=false;}}>
+                  ⏹ Detener / Limpiar cola
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── RANKING ── */}
+          {tab==="ranking" && (
+            <div className="ai">
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:12}}>
+                {[
+                  {ic:"💎",v:totDia, l:"DIAMANTES TOTALES",c:"#ffd700"},
+                  {ic:"❤️",v:totLike,l:"LIKES TOTALES",    c:"#fe2c55"},
+                ].map(s=>(
+                  <div key={s.l} style={{background:"#12121e",border:"1px solid #1e1e2e",
+                    borderRadius:12,padding:12,textAlign:"center"}}>
+                    <div style={{fontSize:16,marginBottom:3}}>{s.ic}</div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:19,color:s.c}}>
+                      {s.v.toLocaleString()}
+                    </div>
+                    <div style={{color:"#444",fontSize:9,fontWeight:600,marginTop:2}}>{s.l}</div>
+                  </div>
+                ))}
+              </div>
+
+              {[
+                {title:"🎁 Top Tap Tap", data:tapR, key:"diamonds", color:"#ffd700", icon:"💎", empty:"Esperando regalos..."},
+                {title:"❤️ Top Likes",   data:likeR,key:"count",   color:"#fe2c55", icon:"❤️", empty:"Esperando likes..."},
+              ].map(({title,data,key,color,icon,empty})=>(
+                <div key={title} style={C}>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:12,marginBottom:11}}>
+                    {title}
+                  </div>
+                  {data.length===0
+                    ? <div style={{textAlign:"center",padding:"18px 0",color:"#333",fontSize:11}}>
+                        {conn ? empty : "Conecta tu LIVE"}
+                      </div>
+                    : data.map((item,i)=>{
+                        const medals=["🥇","🥈","🥉","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟"];
+                        const max=data[0][key]||1;
+                        const pct=Math.round((item[key]/max)*100);
+                        return (
+                          <div key={item.user} style={{marginBottom:8}}>
+                            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                              <span style={{fontSize:13,flexShrink:0}}>{medals[i]||"·"}</span>
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                                  <span style={{color:"#fff",fontSize:11,fontWeight:700,
+                                    overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                                    @{item.nickname}
+                                  </span>
+                                  <span style={{color,fontWeight:800,fontSize:11,flexShrink:0,marginLeft:6}}>
+                                    {icon} {item[key].toLocaleString()}
+                                  </span>
+                                </div>
+                                <div style={{height:3,background:"#1a1a28",borderRadius:2,
+                                  marginTop:3,overflow:"hidden"}}>
+                                  <div style={{height:"100%",width:`${pct}%`,borderRadius:2,
+                                    transition:"width .6s",
+                                    background:key==="count"
+                                      ?"linear-gradient(90deg,#fe2c55,#ff6b81)"
+                                      :i===0?"linear-gradient(90deg,#ffd700,#ffaa00)"
+                                      :i===1?"linear-gradient(90deg,#ccc,#888)":"#2a2a3a"}}/>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                  }
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── CHAT ── */}
+          {tab==="chat" && (
+            <div className="ai">
+              <div style={C}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:12,marginBottom:10}}>
+                  💬 Chat en vivo
+                </div>
+                <div style={{background:"#0a0a0f",borderRadius:8,padding:8,
+                  height:400,overflowY:"auto",display:"flex",flexDirection:"column",gap:3}}>
+                  {log.filter(l=>l.t==="msg").length===0
+                    ? <div style={{color:"#333",fontSize:11,textAlign:"center",marginTop:170}}>
+                        {conn ? "Esperando mensajes..." : "Conecta tu LIVE"}
+                      </div>
+                    : log.filter(l=>l.t==="msg").map((item,i)=>(
+                        <div key={i} style={{fontSize:11,padding:"5px 8px",borderRadius:5,
+                          background:"rgba(255,255,255,.02)",borderLeft:"2px solid #252535",color:"#ccc"}}>
+                          {item.tx}
+                        </div>
+                      ))
+                  }
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>{/* /contenido */}
+      </div>{/* /main */}
     </div>
-  </div>;
+  );
 }
 
-ReactDOM.render(<App/>,document.getElementById("root"));
+ReactDOM.render(<App/>, document.getElementById("root"));
 </script>
 </body>
 </html>

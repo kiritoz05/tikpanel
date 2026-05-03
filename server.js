@@ -6,135 +6,158 @@ const cors = require("cors");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*", methods: ["GET","POST"] } });
+const io = new Server(server, {
+  cors: { origin: "*", methods: ["GET", "POST"] },
+  pingInterval: 10000,
+  pingTimeout: 5000,
+  connectTimeout: 15000,
+});
 
 app.use(cors());
 app.use(express.json());
 
-const activeConnections = {};
+// Mapa: username -> { tiktok, retryTimer }
+const sessions = {};
+
+function cleanSession(username) {
+  if (sessions[username]) {
+    clearTimeout(sessions[username].retryTimer);
+    try { sessions[username].tiktok.disconnect(); } catch (e) {}
+    delete sessions[username];
+  }
+}
+
+async function startTikTokConnection(username, socketId) {
+  const tiktok = new WebcastPushConnection(username, {
+    processInitialData: false,
+    enableExtendedGiftInfo: true,
+    enableWebsocketUpgrade: true,
+    requestPollingIntervalMs: 2000,
+  });
+
+  await tiktok.connect();
+
+  sessions[username] = { tiktok, retryTimer: null };
+
+  console.log(`✅ Conectado a @${username}`);
+
+  tiktok.on("chat", (data) => {
+    io.emit("event", {
+      type: "chat",
+      user: data.uniqueId,
+      nickname: data.nickname || data.uniqueId,
+      comment: data.comment,
+      timestamp: Date.now(),
+    });
+  });
+
+  tiktok.on("gift", (data) => {
+    if (data.giftType === 1 && !data.repeatEnd) return;
+    io.emit("event", {
+      type: "gift",
+      user: data.uniqueId,
+      nickname: data.nickname || data.uniqueId,
+      giftName: data.giftName || "",
+      giftId: data.giftId || 0,
+      giftCount: data.repeatCount || 1,
+      diamondCount: data.diamondCount || 0,
+      timestamp: Date.now(),
+    });
+  });
+
+  tiktok.on("follow", (data) => {
+    io.emit("event", {
+      type: "follow",
+      user: data.uniqueId,
+      nickname: data.nickname || data.uniqueId,
+      timestamp: Date.now(),
+    });
+  });
+
+  tiktok.on("like", (data) => {
+    io.emit("event", {
+      type: "like",
+      user: data.uniqueId,
+      likeCount: data.likeCount || 1,
+      timestamp: Date.now(),
+    });
+  });
+
+  tiktok.on("subscribe", (data) => {
+    io.emit("event", {
+      type: "sub",
+      user: data.uniqueId,
+      nickname: data.nickname || data.uniqueId,
+      timestamp: Date.now(),
+    });
+  });
+
+  tiktok.on("share", (data) => {
+    io.emit("event", {
+      type: "share",
+      user: data.uniqueId,
+      nickname: data.nickname || data.uniqueId,
+      timestamp: Date.now(),
+    });
+  });
+
+  tiktok.on("roomUser", (data) => {
+    io.emit("viewers", { count: data.viewerCount });
+  });
+
+  tiktok.on("disconnected", () => {
+    console.log(`❌ Desconectado de @${username}`);
+    if (sessions[username]) delete sessions[username].tiktok;
+    io.emit("tiktok_disconnected", { username });
+  });
+
+  tiktok.on("error", (err) => {
+    console.error(`Error @${username}:`, err.message);
+    io.emit("tiktok_error", { username, message: err.message });
+  });
+
+  return tiktok;
+}
 
 app.get("/", (req, res) => {
-  res.json({ status: "TikPanel Server ✅", connections: Object.keys(activeConnections).length });
+  res.json({
+    status: "TikPanel Server ✅",
+    connections: Object.keys(sessions).length,
+    users: Object.keys(sessions),
+  });
 });
 
 app.post("/connect", async (req, res) => {
   const { username } = req.body;
   if (!username) return res.status(400).json({ error: "Username requerido" });
 
-  if (activeConnections[username]) {
-    try { activeConnections[username].disconnect(); } catch(e) {}
-    delete activeConnections[username];
+  // Limpiar sesión previa
+  cleanSession(username);
+
+  let lastErr = "";
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await startTikTokConnection(username);
+      return res.json({ success: true, message: `Conectado a @${username}` });
+    } catch (err) {
+      lastErr = err.message || "Error desconocido";
+      console.warn(`Intento ${attempt}/3 fallido para @${username}: ${lastErr}`);
+      if (attempt < 3) await new Promise(r => setTimeout(r, 2000 * attempt));
+    }
   }
 
-  try {
-    const tiktok = new WebcastPushConnection(username, {
-      processInitialData: false,
-      enableExtendedGiftInfo: true,
-      enableWebsocketUpgrade: true,
-      requestPollingIntervalMs: 2000,
-    });
-
-    await tiktok.connect();
-    activeConnections[username] = tiktok;
-    console.log(`✅ Conectado a @${username}`);
-
-    // COMENTARIOS — solo emite el evento, el panel decide si hace TTS
-    tiktok.on("chat", (data) => {
-      io.emit("event", {
-        type: "chat",
-        user: data.uniqueId,
-        nickname: data.nickname || data.uniqueId,
-        comment: data.comment,
-        timestamp: Date.now(),
-      });
-    });
-
-    // REGALOS — solo emite el evento, sin mensajes automáticos
-    tiktok.on("gift", (data) => {
-      if (data.giftType === 1 && !data.repeatEnd) return;
-      console.log(`🎁 Regalo: "${data.giftName}" x${data.repeatCount||1} de @${data.uniqueId}`);
-      io.emit("event", {
-        type: "gift",
-        user: data.uniqueId,
-        nickname: data.nickname || data.uniqueId,
-        giftName: data.giftName || "",
-        giftId: data.giftId || 0,
-        giftCount: data.repeatCount || 1,
-        diamondCount: data.diamondCount || 0,
-        timestamp: Date.now(),
-      });
-    });
-
-    // SEGUIDORES — solo emite el evento
-    tiktok.on("follow", (data) => {
-      io.emit("event", {
-        type: "follow",
-        user: data.uniqueId,
-        nickname: data.nickname || data.uniqueId,
-        timestamp: Date.now(),
-      });
-    });
-
-    // LIKES
-    tiktok.on("like", (data) => {
-      io.emit("event", {
-        type: "like",
-        user: data.uniqueId,
-        likeCount: data.likeCount || 1,
-        timestamp: Date.now(),
-      });
-    });
-
-    // SUSCRIPCIONES
-    tiktok.on("subscribe", (data) => {
-      io.emit("event", {
-        type: "sub",
-        user: data.uniqueId,
-        nickname: data.nickname || data.uniqueId,
-        timestamp: Date.now(),
-      });
-    });
-
-    // COMPARTIR
-    tiktok.on("share", (data) => {
-      io.emit("event", {
-        type: "share",
-        user: data.uniqueId,
-        nickname: data.nickname || data.uniqueId,
-        timestamp: Date.now(),
-      });
-    });
-
-    // ESPECTADORES
-    tiktok.on("roomUser", (data) => {
-      io.emit("viewers", { count: data.viewerCount });
-    });
-
-    tiktok.on("disconnected", () => {
-      console.log(`❌ Desconectado de @${username}`);
-      delete activeConnections[username];
-      io.emit("disconnected", { username });
-    });
-
-    tiktok.on("error", (err) => {
-      console.error(`Error @${username}:`, err.message);
-      io.emit("error", { message: err.message });
-    });
-
-    res.json({ success: true, message: `Conectado a @${username}` });
-  } catch (err) {
-    console.error("Error al conectar:", err.message);
-    res.status(500).json({ error: err.message || "No se pudo conectar. ¿Estás en LIVE?" });
-  }
+  res.status(500).json({ error: lastErr || "No se pudo conectar. ¿Estás en LIVE?" });
 });
 
 app.post("/disconnect", (req, res) => {
   const { username } = req.body;
-  if (activeConnections[username]) {
-    try { activeConnections[username].disconnect(); } catch(e) {}
-    delete activeConnections[username];
-  }
+  if (username) cleanSession(username);
   res.json({ success: true });
+});
+
+app.get("/status/:username", (req, res) => {
+  const { username } = req.params;
+  res.json({ connected: !!sessions[username] });
 });
 
 const PORT = process.env.PORT || 3001;
