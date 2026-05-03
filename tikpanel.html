@@ -469,6 +469,9 @@ function App() {
   const [tab,    setTab]    = useState(() => ld("tab", "dashboard"));
   const [sb,     setSb]     = useState(false);
 
+  // Batalla / Versus
+  const [battle, setBattle] = useState(null);
+
   // Conexión TikTok
   const [tUser,  setTUser]  = useState(() => ld("tuser", ""));
   const [conn,   setConn]   = useState(false);
@@ -503,6 +506,7 @@ function App() {
   const ttsVoiceR = useRef(ttsVoice);
   const nativeVoiceR = useRef(nativeVoice);
   const actsR     = useRef([]);
+  const likeUserMapR = useRef({}); // user -> last known totalLikeCount
   const alertsOnR = useRef(true);
 
   // Acciones
@@ -641,8 +645,14 @@ function App() {
         setStats(p=>({...p, follows:p.follows+1}));
         fireAction("Follow Alert","", d.nickname||d.user);
       } else if (d.type==="like") {
-        const lc=d.likeCount||1;
-        setLog(p=>[{t:"like",tx:`❤️ ×${lc} likes`},...p].slice(0,50));
+        // likeCount = likes enviados en este evento (puede ser acumulado por usuario)
+        // Calculamos delta para no sumar de más
+        const prev_total = likeUserMapR.current[d.user] || 0;
+        const new_total  = d.totalLikeCount || d.likeCount || 1;
+        const delta = Math.max(1, new_total - prev_total);
+        likeUserMapR.current[d.user] = new_total;
+        const lc = delta;
+        setLog(p=>[{t:"like",tx:`❤️ ×${lc} likes de @${d.nickname||d.user}`},...p].slice(0,50));
         setStats(p=>({...p, likes:p.likes+lc}));
         setTotLike(p=>p+lc);
         setLAnim(true); setTimeout(()=>setLAnim(false),300);
@@ -651,11 +661,12 @@ function App() {
         setTimeout(()=>setFh(p=>p.filter(h=>h.id!==hid)),1200);
         setLikeR(prev=>{
           const ex=prev.find(u=>u.user===d.user);
-          const upd=ex?prev.map(u=>u.user===d.user?{...u,count:u.count+lc}:u)
-            :[...prev,{user:d.user,nickname:d.user,count:lc}];
+          const nickname = d.nickname || d.user;
+          const upd=ex?prev.map(u=>u.user===d.user?{...u,count:u.count+lc,nickname}:u)
+            :[...prev,{user:d.user,nickname,count:lc}];
           return upd.sort((a,b)=>b.count-a.count).slice(0,10);
         });
-        fireAction("Like Alert","", d.user);
+        fireAction("Like Alert","", d.nickname||d.user);
       } else if (d.type==="sub") {
         setLog(p=>[{t:"sub",tx:`⭐ @${d.nickname||d.user} se suscribió`},...p].slice(0,50));
         fireAction("Sub Alert","", d.nickname||d.user);
@@ -666,6 +677,10 @@ function App() {
     });
 
     sock.on("viewers",           d => setStats(p=>({...p, viewers:d.count})));
+    sock.on("battle", d => {
+      setBattle(d);
+    });
+
     sock.on("tiktok_disconnected", d => {
       setConn(false);
       setLog(p=>[{t:"sys",tx:`⚠️ TikTok desconectado (@${d?.username||"?"}). Reconecta.`},...p].slice(0,50));
@@ -676,6 +691,25 @@ function App() {
 
     return () => sock.disconnect();
   }, [fireAction]);
+
+  /* ─── Restaurar estado conexión al recargar ─────── */
+  useEffect(() => {
+    const savedUser = ld("tuser", "");
+    if (!savedUser) return;
+    // Verificar si el servidor aún tiene la sesión activa
+    fetch(`${SERVER}/status/${encodeURIComponent(savedUser)}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.connected) {
+          setConn(true);
+          setLog([{t:"sys",tx:`✅ Sesión restaurada @${savedUser}`}]);
+        }
+      })
+      .catch(() => {});
+  }, []); // eslint-disable-line
+
+  /* ─── Reset likeUserMap al conectar ─────────────── */
+  // (se hace en connect() limpiando el ref)
 
   /* ─── Conectar/Desconectar TikTok ──────────────── */
   const connect = async () => {
@@ -692,6 +726,8 @@ function App() {
         setConn2(false); setConn(true);
         setStats({viewers:0,gifts:0,follows:0,messages:0,likes:0});
         setTotDia(0); setTotLike(0); setTapR([]); setLikeR([]);
+        setBattle(null);
+        likeUserMapR.current = {}; // reset delta tracker
         setLog([{t:"sys",tx:`✅ Conectado a @${tUser}`}]);
       } else {
         setConn2(false);
@@ -749,6 +785,7 @@ function App() {
     {id:"tts",       icon:"🔊", l:"Voz & Audio"},
     {id:"ranking",   icon:"🏆", l:"Ranking"},
     {id:"chat",      icon:"💬", l:"Chat"},
+    {id:"batalla",   icon:"⚔️",  l:"Batalla"},
   ];
 
   const LC = {gift:"rgba(254,44,85,.08)",follow:"rgba(37,244,238,.08)",msg:"rgba(255,255,255,.02)",
@@ -1298,6 +1335,150 @@ function App() {
             </div>
           )}
 
+
+          {/* ── BATALLA / VERSUS ── */}
+          {tab==="batalla" && (
+            <div className="ai">
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:15,marginBottom:14,
+                display:"flex",alignItems:"center",gap:8}}>
+                ⚔️ Batalla en vivo
+                {battle && battle.status===1 && (
+                  <span className="ld" style={{width:7,height:7,borderRadius:"50%",
+                    background:"#fe2c55",boxShadow:"0 0 8px #fe2c55",display:"inline-block"}}/>
+                )}
+              </div>
+
+              {!conn ? (
+                <div style={{textAlign:"center",padding:"40px 0",color:"#333",fontSize:12}}>
+                  Conecta tu LIVE para ver la batalla
+                </div>
+              ) : !battle ? (
+                <div style={{textAlign:"center",padding:"40px 0",color:"#444",fontSize:12}}>
+                  <div style={{fontSize:36,marginBottom:12}}>⚔️</div>
+                  Esperando batalla...<br/>
+                  <span style={{fontSize:10,color:"#333"}}>
+                    La batalla aparece automáticamente cuando el LIVE inicia un versus
+                  </span>
+                </div>
+              ) : (
+                <div>
+                  {/* Estado */}
+                  <div style={{textAlign:"center",marginBottom:16}}>
+                    <span style={{background:battle.status===1?"rgba(254,44,85,.12)":"rgba(37,244,238,.1)",
+                      border:`1px solid ${battle.status===1?"rgba(254,44,85,.3)":"rgba(37,244,238,.3)"}`,
+                      borderRadius:20,padding:"4px 14px",fontSize:10,fontWeight:800,
+                      color:battle.status===1?"#fe2c55":"#25f4ee",letterSpacing:1}}>
+                      {battle.status===1?"🔴 EN CURSO":"✅ FINALIZADA"}
+                    </span>
+                  </div>
+
+                  {/* Equipos */}
+                  {battle.teams && battle.teams.length > 0 ? (
+                    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                      {/* Barra de progreso comparativa */}
+                      {battle.teams.length >= 2 && (() => {
+                        const total = battle.teams.reduce((s,t)=>s+t.points,0)||1;
+                        return (
+                          <div style={{background:"#12121e",border:"1px solid #1e1e2e",
+                            borderRadius:14,padding:14,marginBottom:4}}>
+                            <div style={{display:"flex",justifyContent:"space-between",
+                              alignItems:"center",marginBottom:10}}>
+                              <span style={{fontSize:12,fontWeight:800,color:"#fe2c55",
+                                maxWidth:"40%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                                @{battle.teams[0].hostNickname}
+                              </span>
+                              <span style={{fontSize:10,color:"#444",fontWeight:700}}>VS</span>
+                              <span style={{fontSize:12,fontWeight:800,color:"#25f4ee",
+                                maxWidth:"40%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
+                                textAlign:"right"}}>
+                                @{battle.teams[1].hostNickname}
+                              </span>
+                            </div>
+                            {/* Barra comparativa */}
+                            <div style={{height:10,borderRadius:6,background:"#1a1a28",
+                              overflow:"hidden",display:"flex"}}>
+                              <div style={{height:"100%",
+                                width:`${Math.round(battle.teams[0].points/total*100)}%`,
+                                background:"linear-gradient(90deg,#fe2c55,#ff6b81)",
+                                transition:"width .8s",borderRadius:"6px 0 0 6px"}}/>
+                              <div style={{height:"100%",
+                                width:`${Math.round(battle.teams[1].points/total*100)}%`,
+                                background:"linear-gradient(90deg,#25f4ee,#0ea5e9)",
+                                transition:"width .8s",borderRadius:"0 6px 6px 0"}}/>
+                            </div>
+                            <div style={{display:"flex",justifyContent:"space-between",marginTop:8}}>
+                              <span style={{fontFamily:"'Syne',sans-serif",fontWeight:900,
+                                fontSize:20,color:"#fe2c55"}}>
+                                {battle.teams[0].points.toLocaleString()}
+                              </span>
+                              <span style={{fontFamily:"'Syne',sans-serif",fontWeight:900,
+                                fontSize:20,color:"#25f4ee"}}>
+                                {battle.teams[1].points.toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Cards individuales */}
+                      {battle.teams.map((team, i) => {
+                        const total = battle.teams.reduce((s,t)=>s+t.points,0)||1;
+                        const pct = Math.round(team.points/total*100);
+                        const colors = ["#fe2c55","#25f4ee","#ffd700","#a78bfa"];
+                        const c = colors[i % colors.length];
+                        const winner = battle.teams[0] && battle.teams.length>1 &&
+                          team.points === Math.max(...battle.teams.map(t=>t.points));
+                        return (
+                          <div key={i} style={{background:"#12121e",border:`1px solid ${winner?"rgba(255,215,0,.2)":"#1e1e2e"}`,
+                            borderRadius:13,padding:13}}>
+                            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                              {winner && <span style={{fontSize:18}}>👑</span>}
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{fontWeight:800,fontSize:13,color:"#fff",
+                                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                                  @{team.hostNickname}
+                                </div>
+                                <div style={{fontSize:9,color:"#555",fontFamily:"'JetBrains Mono',monospace"}}>
+                                  @{team.hostName}
+                                </div>
+                              </div>
+                              <div style={{textAlign:"right"}}>
+                                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,
+                                  fontSize:22,color:c,lineHeight:1}}>
+                                  {team.points.toLocaleString()}
+                                </div>
+                                <div style={{fontSize:9,color:"#444",fontWeight:600}}>puntos</div>
+                              </div>
+                            </div>
+                            {/* Barra individual */}
+                            <div style={{height:5,background:"#1a1a28",borderRadius:3,overflow:"hidden"}}>
+                              <div style={{height:"100%",width:`${pct}%`,borderRadius:3,
+                                transition:"width .8s",
+                                background:`linear-gradient(90deg,${c},${c}88)`}}/>
+                            </div>
+                            <div style={{fontSize:9,color:"#444",marginTop:4,textAlign:"right"}}>
+                              {pct}% del total
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{textAlign:"center",color:"#444",fontSize:11,padding:"20px 0"}}>
+                      Sin datos de equipos aún...
+                    </div>
+                  )}
+
+                  {/* Última actualización */}
+                  {battle.timestamp && (
+                    <div style={{textAlign:"center",color:"#333",fontSize:9,marginTop:12}}>
+                      Actualizado: {new Date(battle.timestamp).toLocaleTimeString()}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>{/* /contenido */}
       </div>{/* /main */}
     </div>

@@ -27,7 +27,7 @@ function cleanSession(username) {
   }
 }
 
-async function startTikTokConnection(username, socketId) {
+async function startTikTokConnection(username) {
   const tiktok = new WebcastPushConnection(username, {
     processInitialData: false,
     enableExtendedGiftInfo: true,
@@ -78,7 +78,11 @@ async function startTikTokConnection(username, socketId) {
     io.emit("event", {
       type: "like",
       user: data.uniqueId,
+      nickname: data.nickname || data.uniqueId,
+      // likeCount = total acumulado del live para este usuario (no delta)
+      // totalLikeCount = total del live completo
       likeCount: data.likeCount || 1,
+      totalLikeCount: data.totalLikeCount || 0,
       timestamp: Date.now(),
     });
   });
@@ -105,6 +109,37 @@ async function startTikTokConnection(username, socketId) {
     io.emit("viewers", { count: data.viewerCount });
   });
 
+  // ── BATALLA / VERSUS ──────────────────────────────────────────────────────
+  // El evento "linkMicBattle" llega cuando hay puntos de batalla en progreso
+  tiktok.on("linkMicBattle", (data) => {
+    // data.battleUsers = array con info de cada participante
+    // data.battleStatus = 1=en curso, 2=finalizado
+    const teams = (data.battleUsers || []).map((u) => ({
+      hostName: u.uniqueId || u.displayId || "?",
+      hostNickname: u.nickname || u.uniqueId || "?",
+      points: u.battleScore || 0,
+    }));
+    io.emit("battle", {
+      status: data.battleStatus || 1,
+      teams,
+      timestamp: Date.now(),
+    });
+  });
+
+  // El evento "linkMicArmies" llega cada segundo con puntos actualizados
+  tiktok.on("linkMicArmies", (data) => {
+    const teams = (data.battleItems || []).map((item) => ({
+      hostName: item.hostUser?.uniqueId || item.hostUser?.displayId || "?",
+      hostNickname: item.hostUser?.nickname || item.hostUser?.uniqueId || "?",
+      points: item.points || 0,
+    }));
+    io.emit("battle", {
+      status: 1,
+      teams,
+      timestamp: Date.now(),
+    });
+  });
+
   tiktok.on("disconnected", () => {
     console.log(`❌ Desconectado de @${username}`);
     if (sessions[username]) delete sessions[username].tiktok;
@@ -127,11 +162,16 @@ app.get("/", (req, res) => {
   });
 });
 
+// ── NUEVO: verificar si un usuario está conectado ──────────────────────────
+app.get("/status/:username", (req, res) => {
+  const { username } = req.params;
+  res.json({ connected: !!sessions[username]?.tiktok });
+});
+
 app.post("/connect", async (req, res) => {
   const { username } = req.body;
   if (!username) return res.status(400).json({ error: "Username requerido" });
 
-  // Limpiar sesión previa
   cleanSession(username);
 
   let lastErr = "";
@@ -153,11 +193,6 @@ app.post("/disconnect", (req, res) => {
   const { username } = req.body;
   if (username) cleanSession(username);
   res.json({ success: true });
-});
-
-app.get("/status/:username", (req, res) => {
-  const { username } = req.params;
-  res.json({ connected: !!sessions[username] });
 });
 
 const PORT = process.env.PORT || 3001;
