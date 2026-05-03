@@ -471,6 +471,7 @@ function App() {
 
   // Batalla / Versus
   const [battle, setBattle] = useState(null);
+  const [battleRaw, setBattleRaw] = useState(null); // debug raw
 
   // Conexión TikTok
   const [tUser,  setTUser]  = useState(() => ld("tuser", ""));
@@ -488,6 +489,7 @@ function App() {
   const [totLike,setTotLike]= useState(() => ld("totLike", 0));
   const [tapR,   setTapR]   = useState(() => ld("tapR", []));
   const [likeR,  setLikeR]  = useState(() => ld("likeR", []));
+  const [viewR,  setViewR]  = useState(() => ld("viewR", [])); // ranking espectadores
 
   // TTS settings
   const [ttsMode,  setTtsMode]  = useState(() => ld("ttsMode", "native"));   // "native" | "elevenlabs"
@@ -535,6 +537,7 @@ function App() {
   useEffect(()=>{ sv("totLike", totLike); }, [totLike]);
   useEffect(()=>{ sv("tapR",    tapR);    }, [tapR]);
   useEffect(()=>{ sv("likeR",   likeR);   }, [likeR]);
+  useEffect(()=>{ sv("viewR",   viewR);   }, [viewR]);
 
   // Cargar voces nativas del navegador
   useEffect(() => {
@@ -676,8 +679,19 @@ function App() {
       }
     });
 
-    sock.on("viewers",           d => setStats(p=>({...p, viewers:d.count})));
+    sock.on("viewers", d => setStats(p=>({...p, viewers:d.count})));
+    sock.on("member", d => {
+      // alguien entró al live — actualizar ranking de espectadores
+      if (!d.user) return;
+      setViewR(prev => {
+        const ex = prev.find(u => u.user === d.user);
+        if (ex) return prev; // ya está, no duplicar
+        const upd = [...prev, {user:d.user, nickname:d.nickname||d.user, joinTime:d.timestamp||Date.now()}];
+        return upd.slice(0, 200); // guardar hasta 200
+      });
+    });
     sock.on("battle", d => {
+      setBattleRaw(JSON.stringify(d, null, 2)); // debug
       // Normalizar equipos aunque vengan con estructura variable
       if (d && d.teams) {
         const normalized = {
@@ -741,6 +755,7 @@ function App() {
         setTotDia(0); setTotLike(0); setTapR([]); setLikeR([]);
         setBattle(null);
         likeUserMapR.current = {}; // reset delta tracker
+        setViewR([]); sv("viewR",[]);
         setLog([{t:"sys",tx:`✅ Conectado a @${tUser}`}]);
       } else {
         setConn2(false);
@@ -799,6 +814,7 @@ function App() {
     {id:"ranking",   icon:"🏆", l:"Ranking"},
     {id:"chat",      icon:"💬", l:"Chat"},
     {id:"batalla",   icon:"⚔️",  l:"Batalla"},
+    {id:"espect",    icon:"👁️", l:"Espectadores"},
   ];
 
   const LC = {gift:"rgba(254,44,85,.08)",follow:"rgba(37,244,238,.08)",msg:"rgba(255,255,255,.02)",
@@ -1366,12 +1382,21 @@ function App() {
                   Conecta tu LIVE para ver la batalla
                 </div>
               ) : !battle ? (
-                <div style={{textAlign:"center",padding:"40px 0",color:"#444",fontSize:12}}>
+                <div style={{textAlign:"center",padding:"30px 0",color:"#444",fontSize:12}}>
                   <div style={{fontSize:36,marginBottom:12}}>⚔️</div>
                   Esperando batalla...<br/>
                   <span style={{fontSize:10,color:"#333"}}>
                     La batalla aparece automáticamente cuando el LIVE inicia un versus
                   </span>
+                  {battleRaw && (
+                    <div style={{marginTop:16,background:"#0d0d18",border:"1px solid #1e1e2e",
+                      borderRadius:10,padding:10,textAlign:"left",maxHeight:200,overflowY:"auto"}}>
+                      <div style={{color:"#363655",fontSize:9,fontWeight:700,letterSpacing:.8,
+                        marginBottom:6,textTransform:"uppercase"}}>🔧 Datos recibidos del servidor</div>
+                      <pre style={{fontSize:9,color:"#25f4ee",fontFamily:"monospace",
+                        whiteSpace:"pre-wrap",wordBreak:"break-all"}}>{battleRaw}</pre>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div>
@@ -1490,6 +1515,88 @@ function App() {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ── ESPECTADORES ── */}
+          {tab==="espect" && (
+            <div className="ai">
+              {/* Contador total */}
+              <div style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:14,
+                padding:14,marginBottom:12,display:"flex",alignItems:"center",gap:14}}>
+                <div style={{fontSize:28}}>👁️</div>
+                <div>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:28,
+                    color:"#25f4ee",lineHeight:1}}>{stats.viewers.toLocaleString()}</div>
+                  <div style={{color:"#444",fontSize:9,fontWeight:700,marginTop:2,letterSpacing:.5}}>
+                    ESPECTADORES AHORA
+                  </div>
+                </div>
+                <div style={{marginLeft:"auto",textAlign:"right"}}>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,color:"#fff"}}>
+                    {viewR.length.toLocaleString()}
+                  </div>
+                  <div style={{color:"#444",fontSize:9,fontWeight:600}}>entraron al live</div>
+                </div>
+              </div>
+
+              {/* Lista de espectadores */}
+              <div style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:14,overflow:"hidden"}}>
+                <div style={{background:"#0d0d18",borderBottom:"1px solid #1e1e2e",
+                  padding:"8px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{color:"#363655",fontSize:9,fontWeight:700,letterSpacing:.8,textTransform:"uppercase"}}>
+                    👤 Espectadores que entraron al live
+                  </span>
+                  {viewR.length > 0 && (
+                    <button onClick={()=>{setViewR([]);sv("viewR",[]);}}
+                      style={{background:"transparent",border:"1px solid #252535",borderRadius:5,
+                        padding:"2px 8px",color:"#555",fontSize:9,cursor:"pointer"}}>
+                      Limpiar
+                    </button>
+                  )}
+                </div>
+
+                {!conn ? (
+                  <div style={{textAlign:"center",padding:"30px 16px",color:"#333",fontSize:11}}>
+                    Conecta tu LIVE para ver espectadores
+                  </div>
+                ) : viewR.length === 0 ? (
+                  <div style={{textAlign:"center",padding:"30px 16px",color:"#444",fontSize:11}}>
+                    <div style={{fontSize:28,marginBottom:8}}>👁️</div>
+                    Esperando que entren espectadores...
+                  </div>
+                ) : (
+                  <div style={{maxHeight:460,overflowY:"auto"}}>
+                    {[...viewR].reverse().map((item, i) => (
+                      <div key={item.user} style={{display:"flex",alignItems:"center",gap:10,
+                        padding:"8px 12px",borderBottom:"1px solid #0f0f1a",
+                        transition:"background .1s"}}
+                        onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,.013)"}
+                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                        {/* Avatar */}
+                        <div style={{width:28,height:28,borderRadius:"50%",flexShrink:0,
+                          background:"linear-gradient(135deg,#1e1e2e,#2a2a3a)",
+                          display:"flex",alignItems:"center",justifyContent:"center",
+                          fontSize:11,fontWeight:800,color:"#555"}}>
+                          {(item.nickname||"?")[0].toUpperCase()}
+                        </div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:12,fontWeight:700,color:"#fff",
+                            overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                            @{item.nickname}
+                          </div>
+                          {item.joinTime && (
+                            <div style={{fontSize:9,color:"#444",marginTop:1}}>
+                              Entró: {new Date(item.joinTime).toLocaleTimeString()}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{fontSize:9,color:"#333",flexShrink:0}}>#{viewR.length - i}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>{/* /contenido */}

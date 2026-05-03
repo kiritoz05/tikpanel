@@ -26,13 +26,45 @@ function cleanSession(username) {
   }
 }
 
-// ── Normalizar un usuario de batalla desde cualquier campo posible ──────────
+// Normalizar participante de batalla desde cualquier estructura posible
 function normalizeBattleUser(u) {
   if (!u) return null;
-  const hostName     = u.uniqueId    || u.displayId    || u.userId    || "?";
-  const hostNickname = u.nickname    || u.displayName  || hostName;
-  const points       = Number(u.battleScore || u.score || u.points || 0);
+  const hostName     = u.uniqueId   || u.displayId   || u.userId   || u.id || "?";
+  const hostNickname = u.nickname   || u.displayName || u.name     || hostName;
+  const points       = Number(u.battleScore || u.score || u.points || u.teamPoints || 0);
+  if (hostName === "?") return null;
   return { hostName, hostNickname, points };
+}
+
+// Intentar extraer equipos de CUALQUIER estructura que mande el conector
+function extractTeams(data) {
+  // Candidatos de array de usuarios/equipos en orden de prioridad
+  const candidates = [
+    data.battleUsers,
+    data.battleItems,
+    data.users,
+    data.armies,
+    data.items,
+    data.teams,
+  ].filter(Array.isArray);
+
+  for (const arr of candidates) {
+    const teams = arr.map(item => {
+      // El usuario puede estar anidado en hostUser / host / user o ser el item mismo
+      const u = item.hostUser || item.host || item.user || item;
+      const base = normalizeBattleUser(u);
+      if (!base) return null;
+      // Puntos pueden estar en el item padre, no en el usuario
+      const pts = Number(
+        item.points || item.battleScore || item.score ||
+        item.teamPoints || base.points || 0
+      );
+      return { ...base, points: pts };
+    }).filter(Boolean);
+
+    if (teams.length > 0) return teams;
+  }
+  return [];
 }
 
 async function startTikTokConnection(username) {
@@ -112,38 +144,44 @@ async function startTikTokConnection(username) {
     io.emit("viewers", { count: data.viewerCount });
   });
 
-  // ── BATALLA: linkMicBattle ─────────────────────────────────────────────
-  // Estructura real del conector: data.battleUsers[] con .uniqueId, .nickname, .battleScore
-  tiktok.on("linkMicBattle", (data) => {
-    console.log("linkMicBattle raw:", JSON.stringify(data).slice(0, 500));
-    const users = data.battleUsers || data.battleItems || data.users || [];
-    const teams = users.map(normalizeBattleUser).filter(Boolean);
-    if (teams.length === 0) return;
-    io.emit("battle", {
-      status: data.battleStatus || 1,
-      teams,
+  // ── ESPECTADORES: alguien entra al live ────────────────────────────────
+  tiktok.on("member", (data) => {
+    io.emit("member", {
+      user: data.uniqueId,
+      nickname: data.nickname || data.uniqueId,
       timestamp: Date.now(),
     });
   });
 
-  // ── BATALLA: linkMicArmies (actualización por segundo) ─────────────────
-  // Estructura: data.battleItems[] con .hostUser{}, .points
+  // ── BATALLA: linkMicBattle ─────────────────────────────────────────────
+  tiktok.on("linkMicBattle", (data) => {
+    console.log("[linkMicBattle] raw keys:", Object.keys(data));
+    console.log("[linkMicBattle] raw:", JSON.stringify(data).slice(0, 800));
+
+    const teams = extractTeams(data);
+    console.log("[linkMicBattle] teams parsed:", JSON.stringify(teams));
+
+    io.emit("battle", {
+      status: data.battleStatus || 1,
+      teams,
+      _raw: JSON.stringify(data).slice(0, 600), // para debug en cliente
+      timestamp: Date.now(),
+    });
+  });
+
+  // ── BATALLA: linkMicArmies (tick por segundo con puntos) ───────────────
   tiktok.on("linkMicArmies", (data) => {
-    console.log("linkMicArmies raw:", JSON.stringify(data).slice(0, 500));
-    const items = data.battleItems || data.armies || data.items || [];
-    const teams = items.map(item => {
-      // El host puede estar en item.hostUser o directamente en item
-      const u = item.hostUser || item.host || item;
-      const base = normalizeBattleUser(u);
-      if (!base) return null;
-      // Los puntos pueden estar en el item padre
-      base.points = Number(item.points || item.battleScore || item.score || base.points || 0);
-      return base;
-    }).filter(Boolean);
-    if (teams.length === 0) return;
+    console.log("[linkMicArmies] raw keys:", Object.keys(data));
+    console.log("[linkMicArmies] raw:", JSON.stringify(data).slice(0, 800));
+
+    const teams = extractTeams(data);
+    console.log("[linkMicArmies] teams parsed:", JSON.stringify(teams));
+
+    if (teams.length === 0) return; // no emitir vacío
     io.emit("battle", {
       status: 1,
       teams,
+      _raw: JSON.stringify(data).slice(0, 600),
       timestamp: Date.now(),
     });
   });
