@@ -9,7 +9,7 @@ const app = express();
 const server = http.createServer(app);
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "";
-const ELEVENLABS_VOICE_ID = "cgSgspJ2msm6clMCkdW9"; // Bella - voz natural en español
+let CURRENT_VOICE_ID = "cgSgspJ2msm6clMCkdW9"; // Voz activa, cambia dinámicamente
 
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] },
@@ -30,7 +30,7 @@ async function textToSpeech(text) {
     });
     const options = {
       hostname: "api.elevenlabs.io",
-      path: `/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
+      path: `/v1/text-to-speech/${CURRENT_VOICE_ID}`,
       method: "POST",
       headers: {
         "xi-api-key": ELEVENLABS_API_KEY,
@@ -91,15 +91,40 @@ app.post("/connect", async (req, res) => {
     // REGALOS
     tiktokLive.on("gift", async (data) => {
       if (data.giftType === 1 && !data.repeatEnd) return;
+      const giftName = data.giftName || "";
+      const nickname = data.nickname || data.uniqueId;
+      const giftCount = data.repeatCount || 1;
+
       io.emit("event", {
-        type: "gift", user: data.uniqueId, nickname: data.nickname,
-        giftName: data.giftName, giftCount: data.repeatCount || 1,
-        diamondCount: data.diamondCount, timestamp: Date.now(),
+        type: "gift", user: data.uniqueId, nickname,
+        giftName, giftCount, diamondCount: data.diamondCount, timestamp: Date.now(),
       });
+
       if (ELEVENLABS_API_KEY) {
         try {
-          const audio = await textToSpeech(`${data.nickname} envió ${data.repeatCount || 1} ${data.giftName}`);
+          let message = "";
+
+          // Mensajes personalizados por tipo de regalo
+          if (giftName.toLowerCase().includes("rosa") || giftName.toLowerCase().includes("rose")) {
+            message = `¡Bienvenido ${nickname} al live de Luz Álva! Gracias por tu hermosa rosa, que bonito detalle!`;
+          } else if (giftName.toLowerCase().includes("leon") || giftName.toLowerCase().includes("lion")) {
+            message = `¡Woow ${nickname} mandó un león! Muchas gracias por ese increíble regalo, eres lo máximo!`;
+          } else if (giftName.toLowerCase().includes("universo") || giftName.toLowerCase().includes("universe")) {
+            message = `¡No puede ser! ¡${nickname} mandó el universo! Muchísimas gracias, eso es demasiado generoso!`;
+          } else if (giftName.toLowerCase().includes("corazon") || giftName.toLowerCase().includes("heart")) {
+            message = `¡Aww ${nickname} mandó un corazón! Gracias por tanto amor en el live de Luz Álva!`;
+          } else if (giftName.toLowerCase().includes("diamante") || giftName.toLowerCase().includes("diamond")) {
+            message = `¡${nickname} es demasiado bueno! Mandó diamantes al live de Luz Álva, muchas gracias!`;
+          } else if (giftCount >= 10) {
+            message = `¡Increíble! ${nickname} mandó ${giftCount} ${giftName}. Gracias por tanto apoyo en el live de Luz Álva!`;
+          } else {
+            message = `¡Gracias ${nickname} por el ${giftName}! Qué lindo apoyo en el live de Luz Álva!`;
+          }
+
+          const audio = await textToSpeech(message);
           io.emit("tts_audio", { audio });
+          // También emitir el texto para mostrar en el log
+          io.emit("gift_alert", { message, nickname, giftName, giftCount });
         } catch(e) { console.error("TTS error:", e.message); }
       }
     });
@@ -136,6 +161,17 @@ app.post("/connect", async (req, res) => {
     res.json({ success: true, message: `Conectado a @${username}` });
   } catch (err) {
     res.status(500).json({ error: err.message || "No se pudo conectar. ¿El usuario está en LIVE?" });
+  }
+});
+
+app.post("/setvoice", (req, res) => {
+  const { voiceId } = req.body;
+  if (voiceId) {
+    CURRENT_VOICE_ID = voiceId;
+    console.log(`🎙️ Voz cambiada a: ${voiceId}`);
+    res.json({ success: true, voiceId });
+  } else {
+    res.status(400).json({ error: "voiceId requerido" });
   }
 });
 

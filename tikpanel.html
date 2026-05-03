@@ -39,14 +39,18 @@ const ELEVENLABS_API_KEY = "sk_c59a0c3dddc47a866083fc9b58a7dbd92b722fb2fb12da11"
 
 // Voces predefinidas en español
 const DEFAULT_VOICES = [
-  { id: "cgSgspJ2msm6clMCkdW9", name: "Bella (Español Natural)" },
-  { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel (Multilingüe)" },
-  { id: "AZnzlk1XvdvUeBnXmlld", name: "Domi (Energética)" },
-  { id: "EXAVITQu4vr4xnSDxMaL", name: "Elli (Joven)" },
-  { id: "ErXwobaYiN019PkySvjV", name: "Antoni (Masculina)" },
-  { id: "VR6AewLTigWG4xSOukaG", name: "Arnold (Masculina Profunda)" },
-  { id: "pNInz6obpgDQGcFmaJgB", name: "Adam (Narrador)" },
-  { id: "yoZ06aMxZJJ28mfd3POQ", name: "Sam (Masculina Cálida)" },
+  { id: "cgSgspJ2msm6clMCkdW9", name: "🇲🇽 Bella - Español Natural (Femenina)" },
+  { id: "21m00Tcm4TlvDq8ikWAM", name: "🌍 Rachel - Multilingüe (Femenina)" },
+  { id: "AZnzlk1XvdvUeBnXmlld", name: "⚡ Domi - Energética (Femenina)" },
+  { id: "EXAVITQu4vr4xnSDxMaL", name: "🌟 Elli - Joven (Femenina)" },
+  { id: "MF3mGyEYCl7XYWbV9V6O", name: "🇦🇷 Elli - Argentina (Femenina)" },
+  { id: "ErXwobaYiN019PkySvjV", name: "🎙️ Antoni - Natural (Masculina)" },
+  { id: "VR6AewLTigWG4xSOukaG", name: "🔊 Arnold - Profunda (Masculina)" },
+  { id: "pNInz6obpgDQGcFmaJgB", name: "📖 Adam - Narrador (Masculina)" },
+  { id: "yoZ06aMxZJJ28mfd3POQ", name: "☕ Sam - Cálida (Masculina)" },
+  { id: "TxGEqnHWrfWFTfGW9XjX", name: "🇪🇸 Josh - España (Masculina)" },
+  { id: "g5CIjZEefAph4nQFvHAz", name: "🎭 Ethan - Expresiva (Masculina)" },
+  { id: "onwK4e9ZLuTAKqWW03F9", name: "👑 Daniel - Presentador (Masculina)" },
 ];
 
 const USERS = {
@@ -168,14 +172,30 @@ function App(){
   const [floatingHearts, setFloatingHearts]=useState([]);
   const [ttsOn,setTtsOn]=useState(true);
   const [ttsVoice,setTtsVoice]=useState("cgSgspJ2msm6clMCkdW9");
+  const [activeVoice,setActiveVoice]=useState("cgSgspJ2msm6clMCkdW9");
+  const [voiceApplied,setVoiceApplied]=useState(false);
   const [ttsVol,setTtsVol]=useState(80);
   const [voices, setVoices]=useState(DEFAULT_VOICES);
   const [loadingVoices, setLoadingVoices]=useState(false);
   const ttsOnRef = useRef(true);
   const ttsVolRef = useRef(80);
+  const activeVoiceRef = useRef("cgSgspJ2msm6clMCkdW9");
 
   useEffect(()=>{ ttsOnRef.current = ttsOn; },[ttsOn]);
   useEffect(()=>{ ttsVolRef.current = ttsVol; },[ttsVol]);
+
+  const applyVoice = () => {
+    activeVoiceRef.current = ttsVoice;
+    setActiveVoice(ttsVoice);
+    setVoiceApplied(true);
+    setTimeout(()=>setVoiceApplied(false), 2000);
+    // Notificar al servidor la nueva voz
+    fetch(`${SERVER_URL}/setvoice`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ voiceId: ttsVoice })
+    }).catch(()=>{});
+  };
 
   // Cargar voces desde ElevenLabs
   useEffect(()=>{
@@ -243,6 +263,10 @@ function App(){
         setFloatingHearts(p=>[...p, {id, x: Math.random()*60+20}]);
         setTimeout(()=>setFloatingHearts(p=>p.filter(h=>h.id!==id)), 1000);
       }
+    });
+
+    socket.on("gift_alert", (data) => {
+      setLog(p=>[{type:"gift", text:`🎁 ALERTA: ${data.message}`},...p].slice(0,25));
     });
 
     socket.on("tts_audio", (data) => {
@@ -548,9 +572,30 @@ function App(){
                   </label>
                   <select value={ttsVoice} onChange={e=>setTtsVoice(e.target.value)} disabled={!ttsOn}
                     style={{width:"100%",background:"#0d0d15",border:"1px solid #2a2a3a",
-                      borderRadius:10,padding:"11px 14px",color:ttsOn?"#fff":"#444",fontSize:14,outline:"none"}}>
+                      borderRadius:10,padding:"11px 14px",color:ttsOn?"#fff":"#444",fontSize:14,outline:"none",marginBottom:10}}>
                     {voices.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}
                   </select>
+                  {/* Voz activa actual */}
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+                    background:"rgba(37,244,238,0.05)",border:"1px solid rgba(37,244,238,0.15)",
+                    borderRadius:10,padding:"10px 14px",marginBottom:10}}>
+                    <div>
+                      <div style={{color:"#555",fontSize:11,fontWeight:600,letterSpacing:0.5}}>VOZ ACTIVA EN EL LIVE</div>
+                      <div style={{color:"#25f4ee",fontSize:13,fontWeight:700,marginTop:3}}>
+                        {voices.find(v=>v.id===activeVoice)?.name || "Bella (Español Natural)"}
+                      </div>
+                    </div>
+                    <div style={{width:8,height:8,borderRadius:"50%",background:"#25f4ee",
+                      boxShadow:"0 0 8px #25f4ee"}} className="live-dot"/>
+                  </div>
+                  <button onClick={applyVoice} disabled={!ttsOn || ttsVoice===activeVoice}
+                    style={{width:"100%",background:(!ttsOn||ttsVoice===activeVoice)?"#1a1a2a":"linear-gradient(135deg,#fe2c55,#ff6b81)",
+                      border:"none",borderRadius:10,padding:"12px",
+                      color:(!ttsOn||ttsVoice===activeVoice)?"#444":"#fff",
+                      fontWeight:700,cursor:(!ttsOn||ttsVoice===activeVoice)?"not-allowed":"pointer",
+                      fontSize:14,transition:"all 0.2s"}}>
+                    {voiceApplied ? "✅ ¡Voz aplicada!" : ttsVoice===activeVoice ? "✓ Esta voz ya está activa" : "Aplicar voz al LIVE"}
+                  </button>
                 </div>
                 <div style={{marginBottom:24}}>
                   <label style={{display:"block",color:"#666",fontSize:11,fontWeight:600,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>
@@ -606,7 +651,7 @@ function App(){
           {/* ALERTS */}
           {tab==="alerts"&&(
             <div className="animate-in">
-              <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20}}>
+              <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20,marginBottom:16}}>
                 <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,marginBottom:20}}>🔔 Alertas de Sonido</div>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24}}>
                   <span style={{color:"#aaa",fontSize:14}}>Activar alertas</span>
@@ -638,6 +683,35 @@ function App(){
                       style={{accentColor:"#fe2c55",width:16,height:16}}/>
                   </div>
                 ))}
+              </div>
+
+              {/* Mensajes personalizados por regalo */}
+              <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20}}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,marginBottom:6}}>🎁 Mensajes TTS por Regalo</div>
+                <div style={{color:"#555",fontSize:12,marginBottom:16}}>Usa <span style={{color:"#25f4ee"}}>@usuario</span> para insertar el nombre automáticamente</div>
+
+                {[
+                  {gift:"🌹 Rosa", msg:"¡Bienvenido @usuario al live de Luz Álva! Gracias por tu hermosa rosa, qué bonito detalle!"},
+                  {gift:"🦁 León", msg:"¡Woow @usuario mandó un león! Muchas gracias por ese increíble regalo, eres lo máximo!"},
+                  {gift:"🌌 Universo", msg:"¡No puede ser! ¡@usuario mandó el universo! Eso es demasiado generoso!"},
+                  {gift:"❤️ Corazón", msg:"¡Aww @usuario mandó un corazón! Gracias por tanto amor en el live!"},
+                  {gift:"💎 Diamante", msg:"¡@usuario es demasiado bueno! Mandó diamantes, muchas gracias!"},
+                  {gift:"🎁 Otros regalos", msg:"¡Gracias @usuario por el regalo! Qué lindo apoyo en el live de Luz Álva!"},
+                ].map((item,i)=>(
+                  <div key={i} style={{marginBottom:14}}>
+                    <div style={{color:"#fe2c55",fontSize:12,fontWeight:700,marginBottom:6}}>{item.gift}</div>
+                    <textarea defaultValue={item.msg}
+                      style={{width:"100%",background:"#0d0d15",border:"1px solid #2a2a3a",
+                        borderRadius:10,padding:"10px 12px",color:"#aaa",fontSize:12,
+                        outline:"none",resize:"vertical",minHeight:60,lineHeight:1.5,
+                        boxSizing:"border-box"}}/>
+                  </div>
+                ))}
+                <button style={{background:"linear-gradient(135deg,#fe2c55,#ff6b81)",
+                  border:"none",borderRadius:10,padding:"12px",color:"#fff",
+                  fontWeight:700,cursor:"pointer",fontSize:14,width:"100%"}}>
+                  💾 Guardar mensajes
+                </button>
               </div>
             </div>
           )}
