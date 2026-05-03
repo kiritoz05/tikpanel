@@ -484,10 +484,10 @@ function App() {
   const [log,    setLog]    = useState([]);
   const [lAnim,  setLAnim]  = useState(false);
   const [fh,     setFh]     = useState([]);
-  const [totDia, setTotDia] = useState(0);
-  const [totLike,setTotLike]= useState(0);
-  const [tapR,   setTapR]   = useState([]);
-  const [likeR,  setLikeR]  = useState([]);
+  const [totDia, setTotDia] = useState(() => ld("totDia", 0));
+  const [totLike,setTotLike]= useState(() => ld("totLike", 0));
+  const [tapR,   setTapR]   = useState(() => ld("tapR", []));
+  const [likeR,  setLikeR]  = useState(() => ld("likeR", []));
 
   // TTS settings
   const [ttsMode,  setTtsMode]  = useState(() => ld("ttsMode", "native"));   // "native" | "elevenlabs"
@@ -531,6 +531,10 @@ function App() {
   useEffect(()=>{ alertsOnR.current=alertsOn; sv("alertsOn",alertsOn);}, [alertsOn]);
   useEffect(()=>{ sv("tab",   tab);   }, [tab]);
   useEffect(()=>{ sv("tuser", tUser); }, [tUser]);
+  useEffect(()=>{ sv("totDia",  totDia);  }, [totDia]);
+  useEffect(()=>{ sv("totLike", totLike); }, [totLike]);
+  useEffect(()=>{ sv("tapR",    tapR);    }, [tapR]);
+  useEffect(()=>{ sv("likeR",   likeR);   }, [likeR]);
 
   // Cargar voces nativas del navegador
   useEffect(() => {
@@ -645,13 +649,9 @@ function App() {
         setStats(p=>({...p, follows:p.follows+1}));
         fireAction("Follow Alert","", d.nickname||d.user);
       } else if (d.type==="like") {
-        // likeCount = likes enviados en este evento (puede ser acumulado por usuario)
-        // Calculamos delta para no sumar de más
-        const prev_total = likeUserMapR.current[d.user] || 0;
-        const new_total  = d.totalLikeCount || d.likeCount || 1;
-        const delta = Math.max(1, new_total - prev_total);
-        likeUserMapR.current[d.user] = new_total;
-        const lc = delta;
+        // likeCount = cantidad de likes enviados en este batch por el usuario
+        // NO acumular por usuario — cada evento ya representa likes nuevos
+        const lc = d.likeCount || 1;
         setLog(p=>[{t:"like",tx:`❤️ ×${lc} likes de @${d.nickname||d.user}`},...p].slice(0,50));
         setStats(p=>({...p, likes:p.likes+lc}));
         setTotLike(p=>p+lc);
@@ -678,7 +678,20 @@ function App() {
 
     sock.on("viewers",           d => setStats(p=>({...p, viewers:d.count})));
     sock.on("battle", d => {
-      setBattle(d);
+      // Normalizar equipos aunque vengan con estructura variable
+      if (d && d.teams) {
+        const normalized = {
+          ...d,
+          teams: d.teams.map(t => ({
+            hostName:     t.hostName     || t.uniqueId  || t.displayId  || "?",
+            hostNickname: t.hostNickname || t.nickname  || t.hostName   || "?",
+            points:       Number(t.points || t.battleScore || t.score || 0),
+          })).filter(t => t.hostName !== "?"),
+        };
+        setBattle(normalized);
+      } else {
+        setBattle(d);
+      }
     });
 
     sock.on("tiktok_disconnected", d => {
@@ -1036,10 +1049,10 @@ function App() {
                         {conn?"Esperando actividad...":"Conecta tu LIVE"}
                       </div>
                     : log.map((item,i)=>(
-                        <div key={i} style={{fontSize:10,padding:"4px 7px",borderRadius:5,
+                        <div key={i} style={{fontSize:12,padding:"5px 8px",borderRadius:5,
                           background:LC[item.t]||"rgba(255,255,255,.02)",
                           borderLeft:`2px solid ${LB[item.t]||"#252535"}`,
-                          color:LB[item.t]||"#888"}}>
+                          color:"#ffffff",fontWeight:500}}>
                           {item.tx}
                         </div>
                       ))
@@ -1324,8 +1337,8 @@ function App() {
                         {conn ? "Esperando mensajes..." : "Conecta tu LIVE"}
                       </div>
                     : log.filter(l=>l.t==="msg").map((item,i)=>(
-                        <div key={i} style={{fontSize:11,padding:"5px 8px",borderRadius:5,
-                          background:"rgba(255,255,255,.02)",borderLeft:"2px solid #252535",color:"#ccc"}}>
+                        <div key={i} style={{fontSize:12,padding:"5px 8px",borderRadius:5,
+                          background:"rgba(255,255,255,.02)",borderLeft:"2px solid #252535",color:"#ffffff",fontWeight:500}}>
                           {item.tx}
                         </div>
                       ))

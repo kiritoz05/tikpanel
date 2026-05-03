@@ -16,7 +16,6 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-// Mapa: username -> { tiktok, retryTimer }
 const sessions = {};
 
 function cleanSession(username) {
@@ -25,6 +24,15 @@ function cleanSession(username) {
     try { sessions[username].tiktok.disconnect(); } catch (e) {}
     delete sessions[username];
   }
+}
+
+// ── Normalizar un usuario de batalla desde cualquier campo posible ──────────
+function normalizeBattleUser(u) {
+  if (!u) return null;
+  const hostName     = u.uniqueId    || u.displayId    || u.userId    || "?";
+  const hostNickname = u.nickname    || u.displayName  || hostName;
+  const points       = Number(u.battleScore || u.score || u.points || 0);
+  return { hostName, hostNickname, points };
 }
 
 async function startTikTokConnection(username) {
@@ -36,9 +44,7 @@ async function startTikTokConnection(username) {
   });
 
   await tiktok.connect();
-
   sessions[username] = { tiktok, retryTimer: null };
-
   console.log(`✅ Conectado a @${username}`);
 
   tiktok.on("chat", (data) => {
@@ -79,10 +85,7 @@ async function startTikTokConnection(username) {
       type: "like",
       user: data.uniqueId,
       nickname: data.nickname || data.uniqueId,
-      // likeCount = total acumulado del live para este usuario (no delta)
-      // totalLikeCount = total del live completo
       likeCount: data.likeCount || 1,
-      totalLikeCount: data.totalLikeCount || 0,
       timestamp: Date.now(),
     });
   });
@@ -109,16 +112,13 @@ async function startTikTokConnection(username) {
     io.emit("viewers", { count: data.viewerCount });
   });
 
-  // ── BATALLA / VERSUS ──────────────────────────────────────────────────────
-  // El evento "linkMicBattle" llega cuando hay puntos de batalla en progreso
+  // ── BATALLA: linkMicBattle ─────────────────────────────────────────────
+  // Estructura real del conector: data.battleUsers[] con .uniqueId, .nickname, .battleScore
   tiktok.on("linkMicBattle", (data) => {
-    // data.battleUsers = array con info de cada participante
-    // data.battleStatus = 1=en curso, 2=finalizado
-    const teams = (data.battleUsers || []).map((u) => ({
-      hostName: u.uniqueId || u.displayId || "?",
-      hostNickname: u.nickname || u.uniqueId || "?",
-      points: u.battleScore || 0,
-    }));
+    console.log("linkMicBattle raw:", JSON.stringify(data).slice(0, 500));
+    const users = data.battleUsers || data.battleItems || data.users || [];
+    const teams = users.map(normalizeBattleUser).filter(Boolean);
+    if (teams.length === 0) return;
     io.emit("battle", {
       status: data.battleStatus || 1,
       teams,
@@ -126,13 +126,21 @@ async function startTikTokConnection(username) {
     });
   });
 
-  // El evento "linkMicArmies" llega cada segundo con puntos actualizados
+  // ── BATALLA: linkMicArmies (actualización por segundo) ─────────────────
+  // Estructura: data.battleItems[] con .hostUser{}, .points
   tiktok.on("linkMicArmies", (data) => {
-    const teams = (data.battleItems || []).map((item) => ({
-      hostName: item.hostUser?.uniqueId || item.hostUser?.displayId || "?",
-      hostNickname: item.hostUser?.nickname || item.hostUser?.uniqueId || "?",
-      points: item.points || 0,
-    }));
+    console.log("linkMicArmies raw:", JSON.stringify(data).slice(0, 500));
+    const items = data.battleItems || data.armies || data.items || [];
+    const teams = items.map(item => {
+      // El host puede estar en item.hostUser o directamente en item
+      const u = item.hostUser || item.host || item;
+      const base = normalizeBattleUser(u);
+      if (!base) return null;
+      // Los puntos pueden estar en el item padre
+      base.points = Number(item.points || item.battleScore || item.score || base.points || 0);
+      return base;
+    }).filter(Boolean);
+    if (teams.length === 0) return;
     io.emit("battle", {
       status: 1,
       teams,
@@ -162,7 +170,6 @@ app.get("/", (req, res) => {
   });
 });
 
-// ── NUEVO: verificar si un usuario está conectado ──────────────────────────
 app.get("/status/:username", (req, res) => {
   const { username } = req.params;
   res.json({ connected: !!sessions[username]?.tiktok });
