@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TikPanel - Control para Streamers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{background:#0a0a0f;color:#fff;font-family:'DM Sans',sans-serif;min-height:100vh}
+        input,select,button,textarea{font-family:'DM Sans',sans-serif}
+        ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#0d0d15}::-webkit-scrollbar-thumb{background:#2a2a3a;border-radius:2px}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+        @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(200%)}}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes heartPop{0%{transform:scale(1)}40%{transform:scale(1.6)}100%{transform:scale(1)}}
+        @keyframes floatUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-60px)}}
+        @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+        @keyframes popIn{from{opacity:0;transform:scale(0.94)}to{opacity:1;transform:scale(1)}}
+        .animate-in{animation:fadeIn 0.3s ease forwards}
+        .live-dot{animation:pulse 1s infinite}
+        .cf{animation:slide 1.4s ease-in-out infinite}
+        .hp{animation:heartPop 0.3s ease}
+        .fh{position:absolute;animation:floatUp 1s ease forwards;pointer-events:none;font-size:22px;z-index:10}
+        .moverlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
+        @media(min-width:600px){.moverlay{align-items:center;padding:20px}}
+        .mbox{background:#13131a;border:1px solid #2a2a3a;border-radius:20px 20px 0 0;padding:22px;width:100%;max-width:500px;max-height:92vh;overflow-y:auto;animation:slideUp 0.25s ease}
+        @media(min-width:600px){.mbox{border-radius:20px;animation:popIn 0.2s ease}}
+        .tbl-head{display:grid;grid-template-columns:34px 1fr 95px 55px 55px 50px 84px;padding:9px 14px;gap:6px;background:#0d0d15;border-bottom:1px solid #1e1e2e}
+        .tbl-row{display:grid;grid-template-columns:34px 1fr 95px 55px 55px 50px 84px;padding:11px 14px;gap:6px;align-items:center;border-bottom:1px solid #141420;transition:background 0.1s}
+        .tbl-row:last-child{border-bottom:none}
+        .tbl-row:hover{background:rgba(255,255,255,0.015)}
+        .tbl-row.dis{opacity:0.4}
+        .th{color:#3a3a5a;font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase}
+        .badge{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap}
+        .bf{background:rgba(37,244,238,0.1);color:#25f4ee;border:1px solid rgba(37,244,238,0.2)}
+        .bg{background:rgba(254,44,85,0.1);color:#fe2c55;border:1px solid rgba(254,44,85,0.2)}
+        .bl{background:rgba(245,197,24,0.1);color:#f5c518;border:1px solid rgba(245,197,24,0.2)}
+        .bs{background:rgba(139,92,246,0.1);color:#8b5cf6;border:1px solid rgba(139,92,246,0.2)}
+        .bsh{background:rgba(255,255,255,0.06);color:#888;border:1px solid rgba(255,255,255,0.1)}
+        .uarea{background:#0d0d15;border:1.5px dashed #2a2a3a;border-radius:10px;padding:14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden}
+        .uarea:hover,.uarea.has{border-color:#25f4ee;background:rgba(37,244,238,0.03)}
+        .uarea.has{border-style:solid}
+        .uarea input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+        .itog{width:30px;height:17px;border-radius:9px;cursor:pointer;position:relative;border:none;flex-shrink:0;background:#2a2a3a;transition:background 0.2s}
+        .itog.on{background:#fe2c55}
+        .itog::after{content:'';position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:#fff;transition:left 0.2s}
+        .itog.on::after{left:15px}
+        .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a2a1a;border:1px solid #2a4a2a;border-radius:10px;padding:9px 16px;color:#4ade80;font-size:12px;font-weight:600;z-index:999;animation:fadeIn 0.2s ease;white-space:nowrap}
+    </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const SERVER_URL = "https://tikpanel-production.up.railway.app";
+const EL_KEY = "sk_c59a0c3dddc47a866083fc9b58a7dbd92b722fb2fb12da11";
+
+const USERS = {
+  "admin@tikpanel.com":   {password:"admin123",name:"Admin",      plan:"Pro", avatar:"A"},
+  "usuario@tikpanel.com": {password:"pass123", name:"StreamerPro",plan:"Free",avatar:"S"},
+  "luzalva@tikpanel.com": {password:"luz2024", name:"Luz Álva",   plan:"Pro", avatar:"L"},
+};
+
+const VOICES = [
+  {id:"cgSgspJ2msm6clMCkdW9",name:"🇲🇽 Bella - Natural (Femenina)"},
+  {id:"21m00Tcm4TlvDq8ikWAM",name:"🌍 Rachel - Multilingüe (Femenina)"},
+  {id:"AZnzlk1XvdvUeBnXmlld",name:"⚡ Domi - Energética (Femenina)"},
+  {id:"EXAVITQu4vr4xnSDxMaL",name:"🌟 Elli - Joven (Femenina)"},
+  {id:"ErXwobaYiN019PkySvjV",name:"🎙️ Antoni - Natural (Masculina)"},
+  {id:"VR6AewLTigWG4xSOukaG",name:"🔊 Arnold - Profunda (Masculina)"},
+  {id:"pNInz6obpgDQGcFmaJgB",name:"📖 Adam - Narrador (Masculina)"},
+  {id:"yoZ06aMxZJJ28mfd3POQ",name:"☕ Sam - Cálida (Masculina)"},
+  {id:"onwK4e9ZLuTAKqWW03F9",name:"👑 Daniel - Presentador (Masculina)"},
+];
+
+const EVENT_TYPES = ["Follow Alert","Gift Alert","Like Alert","Sub Alert","Share Alert"];
+
+// Lista completa de regalos de TikTok (+70)
+const GIFT_NAMES = [
+  "Cualquier regalo",
+  "Rosa", "Corazón", "Oso", "León", "Universo", "Diamante", "Cohete", "Trofeo",
+  "Panda", "Arcoíris", "Avión", "Helicóptero", "Yate", "Castillo", "Corona",
+  "Beso", "Anillo", "Ramo de flores", "Carta de amor", "Café", "Cerveza",
+  "TikTok", "Drama Queen", "Concierto", "Espejo Mágico", "Gorro de chef",
+  "Mochila", "Gafas de sol", "Zapatillas", "Reloj", "Perfume", "Bolso",
+  "Maquillaje", "Micrófono", "Cámara", "Disco ball", "Auriculares", "Teclado",
+  "Consola de juegos", "Moto", "Coche deportivo", "Casa", "Avión privado",
+  "Planeta", "Galaxia", "Agujero negro", "Astronauta", "OVNI", "Robot",
+  "Dragón", "Fénix", "Unicornio", "Sirena", "Hada", "Mago", "Guerrero",
+  "Espada mágica", "Escudo", "Poción", "Cofre del tesoro", "Llave dorada",
+  "Estrella fugaz", "Fuegos artificiales", "Globo", "Confeti", "Tarta de cumpleaños",
+  "Helado", "Palomitas", "Hamburguesa", "Pizza", "Sushi", "Galleta de la suerte", "Dona"
+];
+
+const DEFAULT_ACTIONS = [
+  {id:1,enabled:true, name:"Follow Alert",  event:"Follow Alert",giftName:"",           minCount:1,duration:5, soundName:"",soundUrl:"",ttsOn:true, ttsText:"¡Gracias @usuario por seguir el live de Luz Álva! 🎉"},
+  {id:2,enabled:true, name:"Rosa Gift",     event:"Gift Alert",  giftName:"Rosa",        minCount:1,duration:5, soundName:"",soundUrl:"",ttsOn:true, ttsText:"¡Bienvenido @usuario al live de Luz Álva! Gracias por la hermosa rosa 🌹"},
+  {id:3,enabled:true, name:"Like Alert",    event:"Like Alert",  giftName:"",           minCount:1,duration:5, soundName:"",soundUrl:"",ttsOn:false,ttsText:""},
+  {id:4,enabled:false,name:"Sub Alert",     event:"Sub Alert",   giftName:"",           minCount:1,duration:12,soundName:"",soundUrl:"",ttsOn:true, ttsText:"¡@usuario se suscribió! Muchísimas gracias 🎊"},
+  {id:5,enabled:false,name:"León Gift",     event:"Gift Alert",  giftName:"León",        minCount:1,duration:8, soundName:"",soundUrl:"",ttsOn:true, ttsText:"¡Woow @usuario mandó un León! Eres increíble 🦁"},
+];
+
+// Storage
+const sv = (k,v)=>{try{localStorage.setItem("tp_"+k,JSON.stringify(v))}catch(e){}};
+const ld = (k,d)=>{try{const v=localStorage.getItem("tp_"+k);return v!==null?JSON.parse(v):d}catch(e){return d}};
+const clr= ()=>localStorage.removeItem("tp_session");
+
+// ElevenLabs TTS
+async function speakEL(text, voiceId, vol=0.8){
+  try{
+    const r=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,{
+      method:"POST",
+      headers:{"xi-api-key":EL_KEY,"Content-Type":"application/json","Accept":"audio/mpeg"},
+      body:JSON.stringify({text,model_id:"eleven_multilingual_v2",voice_settings:{stability:0.5,similarity_boost:0.75}})
+    });
+    if(!r.ok) throw new Error("EL error "+r.status);
+    const blob=await r.blob();
+    const audio=new Audio(URL.createObjectURL(blob));
+    audio.volume=vol; await audio.play();
+  }catch(e){console.error("TTS:",e.message);}
+}
+
+// ── Toggle ──
+function Toggle({on,onChange,color="#fe2c55"}){
+  return <div onClick={onChange} style={{width:44,height:24,borderRadius:12,cursor:"pointer",position:"relative",
+    background:on?color:"#2a2a3a",transition:"background 0.2s",flexShrink:0}}>
+    <div style={{position:"absolute",top:2,left:on?22:2,width:20,height:20,borderRadius:"50%",
+      background:"#fff",transition:"left 0.2s",boxShadow:"0 1px 4px rgba(0,0,0,0.3)"}}/>
+  </div>;
+}
+
+// ── Action Modal ──────────────────────────────────────────
+function ActionModal({action, voiceId, vol, onSave, onClose}){
+  const [form,setForm]=useState(action?{...action}:{
+    id:Date.now(),enabled:true,name:"",event:"Gift Alert",giftName:"Cualquier regalo",
+    minCount:1,duration:5,soundName:"",soundUrl:"",ttsOn:true,ttsText:""
+  });
+  const [soundUrl,  setSoundUrl]  = useState(action?.soundUrl||"");
+  const [soundName, setSoundName] = useState(action?.soundName||"");
+  const set=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  const handleFile=(e)=>{
+    const f=e.target.files[0]; if(!f) return;
+    setSoundUrl(URL.createObjectURL(f)); setSoundName(f.name);
+  };
+  const testSound=(e)=>{ e.preventDefault(); e.stopPropagation(); if(soundUrl){const a=new Audio(soundUrl);a.volume=vol/100;a.play();} };
+  const testTTS=async()=>{
+    if(!form.ttsText) return;
+    await speakEL(form.ttsText.replace(/@usuario/gi,"UsuarioPrueba"), voiceId, vol/100);
+  };
+
+  const lbl={display:"block",color:"#555",fontSize:11,fontWeight:600,letterSpacing:0.8,textTransform:"uppercase",marginBottom:7};
+  const inp={width:"100%",background:"#0a0a0f",border:"1px solid #2a2a3a",borderRadius:10,padding:"11px 14px",color:"#fff",fontSize:14,outline:"none"};
+
+  return <div className="moverlay" onClick={e=>e.target.classList.contains("moverlay")&&onClose()}>
+    <div className="mbox">
+      <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,marginBottom:20}}>
+        {action?"✏️ Editar Acción":"➕ Nueva Acción"}
+      </div>
+
+      <div style={{marginBottom:14}}>
+        <label style={lbl}>Nombre</label>
+        <input value={form.name} onChange={e=>set("name",e.target.value)} placeholder="Ej: Rosa Gift Alert" style={inp}/>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+        <div>
+          <label style={lbl}>Tipo de evento</label>
+          <select value={form.event} onChange={e=>set("event",e.target.value)}
+            style={{...inp,cursor:"pointer"}}>
+            {EVENT_TYPES.map(t=><option key={t}>{t}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={lbl}>Duración (seg)</label>
+          <input type="number" min="1" max="60" value={form.duration} onChange={e=>set("duration",Number(e.target.value))} style={inp}/>
+        </div>
+      </div>
+
+      {form.event==="Gift Alert"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+        <div>
+          <label style={lbl}>Regalo específico</label>
+          <select value={form.giftName} onChange={e=>set("giftName",e.target.value)} style={{...inp,cursor:"pointer"}}>
+            {GIFT_NAMES.map(g=><option key={g}>{g}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={lbl}>Cantidad mínima</label>
+          <input type="number" min="1" value={form.minCount} onChange={e=>set("minCount",Number(e.target.value))} style={inp}/>
+        </div>
+      </div>}
+
+      {/* Sonido MP3 */}
+      <div style={{marginBottom:14}}>
+        <label style={lbl}>Sonido MP3</label>
+        <div className={`uarea ${soundName?"has":""}`}>
+          <input type="file" accept="audio/*" onChange={handleFile}/>
+          <div style={{width:36,height:36,borderRadius:9,background:"rgba(37,244,238,0.08)",
+            display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>🎵</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:13,fontWeight:600,color:soundName?"#25f4ee":"#fff",
+              overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+              {soundName||"Toca para subir MP3"}
+            </div>
+            <div style={{fontSize:11,color:soundName?"#25f4ee":"#555",marginTop:2}}>
+              {soundName?"✓ Listo":"MP3, WAV, OGG — máx 10MB"}
+            </div>
+          </div>
+          {soundUrl&&<button onClick={testSound}
+            style={{background:"rgba(37,244,238,0.1)",border:"1px solid rgba(37,244,238,0.3)",
+              borderRadius:8,padding:"6px 12px",color:"#25f4ee",fontSize:12,fontWeight:600,
+              cursor:"pointer",flexShrink:0,zIndex:2,position:"relative"}}>▶ Probar</button>}
+        </div>
+      </div>
+
+      {/* TTS */}
+      <div style={{marginBottom:14}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+          <label style={{...lbl,marginBottom:0}}>Mensaje TTS</label>
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <Toggle on={form.ttsOn} onChange={()=>set("ttsOn",!form.ttsOn)} color="#25f4ee"/>
+            <span style={{fontSize:11,color:form.ttsOn?"#25f4ee":"#555"}}>{form.ttsOn?"Activo":"Inactivo"}</span>
+          </div>
+        </div>
+        <div style={{background:"#0a0a0f",border:"1px solid #2a2a3a",borderRadius:10,overflow:"hidden"}}>
+          <textarea value={form.ttsText} onChange={e=>set("ttsText",e.target.value)}
+            disabled={!form.ttsOn}
+            placeholder="Ej: ¡Bienvenido @usuario al live! Usa @usuario para insertar el nombre"
+            style={{width:"100%",background:"transparent",border:"none",padding:"11px 14px",
+              color:form.ttsOn?"#fff":"#444",fontSize:13,outline:"none",resize:"vertical",
+              minHeight:65,lineHeight:1.6}}/>
+          {form.ttsOn&&form.ttsText&&<div style={{borderTop:"1px solid #1a1a2a",padding:"8px 12px",display:"flex",justifyContent:"flex-end"}}>
+            <button onClick={testTTS}
+              style={{background:"rgba(254,44,85,0.08)",border:"1px solid rgba(254,44,85,0.2)",
+                borderRadius:7,padding:"5px 12px",color:"#fe2c55",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+              🔊 Probar TTS
+            </button>
+          </div>}
+        </div>
+        <div style={{color:"#444",fontSize:11,marginTop:6}}>
+          💡 Usa <span style={{color:"#25f4ee",fontFamily:"monospace"}}>@usuario</span> para insertar el nombre automáticamente
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:10,marginTop:4}}>
+        <button onClick={onClose}
+          style={{flex:1,background:"transparent",border:"1px solid #2a2a3a",borderRadius:10,
+            padding:"12px",color:"#666",fontWeight:600,cursor:"pointer",fontSize:14}}>Cancelar</button>
+        <button onClick={()=>onSave({...form,soundUrl,soundName})}
+          style={{flex:2,background:"linear-gradient(135deg,#fe2c55,#ff6b81)",border:"none",
+            borderRadius:10,padding:"12px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14}}>
+          💾 Guardar Acción
+        </button>
+      </div>
+    </div>
+  </div>;
+}
+
+// ── Login ─────────────────────────────────────────────────
+function Login({onLogin}){
+  const [email,setEmail]=useState("");
+  const [pass,setPass]=useState("");
+  const [err,setErr]=useState("");
+  const [loading,setLoading]=useState(false);
+  const go=()=>{
+    setErr("");setLoading(true);
+    setTimeout(()=>{
+      const u=USERS[email.toLowerCase()];
+      if(u&&u.password===pass){onLogin({...u,email});}
+      else{setErr("Credenciales incorrectas.");setLoading(false);}
+    },700);
+  };
+  const inp={width:"100%",background:"#0d0d15",border:"1px solid #1e1e2e",borderRadius:12,padding:"13px 16px",color:"#fff",fontSize:14,outline:"none"};
+  return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#0a0a0f",padding:20}}>
+    <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:24,padding:"44px 36px",width:"100%",maxWidth:400,boxShadow:"0 40px 80px rgba(0,0,0,0.7)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+        <div style={{width:40,height:40,borderRadius:11,background:"linear-gradient(135deg,#fe2c55,#25f4ee)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:19}}>T</div>
+        <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:24,letterSpacing:-0.5}}>ik<span style={{color:"#fe2c55"}}>Panel</span></span>
+      </div>
+      <p style={{color:"#555",fontSize:13,marginBottom:24}}>Plataforma de control para streamers de TikTok</p>
+      <div style={{display:"inline-flex",alignItems:"center",gap:6,background:"rgba(254,44,85,0.08)",border:"1px solid rgba(254,44,85,0.2)",borderRadius:20,padding:"4px 12px",fontSize:12,color:"#fe2c55",marginBottom:24,fontWeight:600}}>🔒 Acceso por invitación</div>
+      <div style={{marginBottom:14}}>
+        <label style={{display:"block",color:"#555",fontSize:11,fontWeight:600,letterSpacing:0.8,textTransform:"uppercase",marginBottom:8}}>Correo</label>
+        <input value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&go()} placeholder="tu@correo.com" type="email" style={inp}/>
+      </div>
+      <div style={{marginBottom:18}}>
+        <label style={{display:"block",color:"#555",fontSize:11,fontWeight:600,letterSpacing:0.8,textTransform:"uppercase",marginBottom:8}}>Contraseña</label>
+        <input value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&go()} placeholder="••••••••" type="password" style={inp}/>
+      </div>
+      {err&&<div style={{background:"rgba(254,44,85,0.08)",border:"1px solid rgba(254,44,85,0.25)",borderRadius:10,padding:"10px 14px",color:"#fe2c55",fontSize:13,marginBottom:14}}>{err}</div>}
+      <button onClick={go} disabled={loading} style={{width:"100%",background:loading?"#1e1e2e":"linear-gradient(135deg,#fe2c55,#ff6b81)",border:"none",borderRadius:12,padding:"13px",color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>
+        {loading?"Verificando...":"Ingresar →"}
+      </button>
+      <p style={{color:"#333",fontSize:12,textAlign:"center",marginTop:18}}>¿Sin acceso? Solicítalo al administrador</p>
+    </div>
+  </div>;
+}
+
+// ── App ───────────────────────────────────────────────────
+function App(){
+  const [user,   setUser]  = useState(()=>ld("session",null));
+  const [tab,    setTab]   = useState(()=>ld("tab","dashboard"));
+  const [sidebar,setSidebar]= useState(false);
+
+  // Live
+  const [tiktokUser,setTiktokUser]=useState(()=>ld("tuser",""));
+  const [connected, setConnected] =useState(false);
+  const [connecting,setConnecting]=useState(false);
+  const [dots,  
