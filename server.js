@@ -42,25 +42,36 @@ function normalizeBattleUser(u) {
 function extractTeams(data) {
 
   // ── CASO 1: linkMicArmies (tick por segundo, estructura más común) ────
-  // data.battleArmies = [{ hostUserId, points, participants:[{userId,nickname}] }]
+  // data.battleArmies = [{ hostUserId:"696...", points:2137, participants:[{userId,nickname,...}] }]
   if (Array.isArray(data.battleArmies) && data.battleArmies.length > 0) {
     return data.battleArmies.map(army => {
       const pts = Number(army.points || army.teamPoints || army.score || 0);
-      // El nickname del host puede estar en participants[0] si es el primer participante
-      // o en army.hostUser si existe
-      let hostName     = army.hostUserId || army.hostId || "?";
+      const hostUserId = String(army.hostUserId || army.hostId || "");
+
+      let hostName     = hostUserId || "?";
       let hostNickname = hostName;
-      if (army.hostUser) {
-        hostName     = army.hostUser.uniqueId     || army.hostUser.userId    || hostName;
-        hostNickname = army.hostUser.nickname     || army.hostUser.name      || hostName;
-      } else if (Array.isArray(army.participants) && army.participants.length > 0) {
-        // El primer participante suele ser el host/dueño del equipo
-        const p = army.participants[0];
-        hostNickname = p.nickname || p.displayName || p.name || hostNickname;
-        if (p.uniqueId) hostName = p.uniqueId;
+
+      // Buscar al host en participants usando su userId
+      if (Array.isArray(army.participants) && army.participants.length > 0) {
+        // Intentar encontrar el participante cuyo userId == hostUserId
+        const hostParticipant = army.participants.find(p =>
+          String(p.userId) === hostUserId || String(p.uniqueId) === hostUserId
+        ) || army.participants[0]; // fallback al primero
+
+        if (hostParticipant) {
+          hostNickname = hostParticipant.nickname || hostParticipant.displayName || hostParticipant.name || hostName;
+          // Usar uniqueId como hostName si existe (es el @username), sino el userId numérico
+          if (hostParticipant.uniqueId && hostParticipant.uniqueId.length > 0) {
+            hostName = hostParticipant.uniqueId;
+          }
+        }
+      } else if (army.hostUser) {
+        hostName     = army.hostUser.uniqueId || army.hostUser.userId || hostName;
+        hostNickname = army.hostUser.nickname || army.hostUser.name   || hostName;
       }
+
       return { hostName, hostNickname, points: pts };
-    }).filter(t => t.hostName !== "?");
+    }).filter(t => t.hostNickname !== "?");
   }
 
   // ── CASO 2: linkMicBattle (evento inicial) ────────────────────────────
