@@ -19,7 +19,6 @@
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
   @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(200%)}}
   @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes glow{0%,100%{box-shadow:0 0 20px rgba(254,44,85,0.3)}50%{box-shadow:0 0 40px rgba(254,44,85,0.6)}}
   @keyframes heartPop{0%{transform:scale(1)}40%{transform:scale(1.5)}100%{transform:scale(1)}}
   @keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-60px) scale(0.5)}}
   .animate-in{animation:fadeIn 0.4s ease forwards}
@@ -34,10 +33,9 @@
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-const SERVER_URL = "https://tikpanel-production.up.railway.app";
-const ELEVENLABS_API_KEY = "sk_c59a0c3dddc47a866083fc9b58a7dbd92b722fb2fb12da11";
+const SERVER_URL = "https://tikpanel-production.up.railway.app"; // CAMBIA POR TU URL
 
-// Voces predefinidas en español
+// Voces predefinidas en español (se cargarán desde ElevenLabs luego)
 const DEFAULT_VOICES = [
   { id: "cgSgspJ2msm6clMCkdW9", name: "🇲🇽 Bella - Español Natural (Femenina)" },
   { id: "21m00Tcm4TlvDq8ikWAM", name: "🌍 Rachel - Multilingüe (Femenina)" },
@@ -58,7 +56,6 @@ const USERS = {
   "usuario@tikpanel.com": { password: "pass123", name: "StreamerPro", plan: "Free", avatar: "S" },
 };
 
-const VOICES = ["Español (México)","Español (España)","Español (Argentina)","Español (Colombia)"];
 const SOUNDS = ["Chime 🔔","Bell 🎵","Coin 💰","Aplausos 👏","Fanfarria 🎺"];
 
 function Toggle({on, onChange}){
@@ -81,27 +78,26 @@ function LoginScreen({onLogin}){
     setErr("");setLoading(true);
     setTimeout(()=>{
       const u=USERS[email.toLowerCase()];
-      if(u&&u.password===pass){onLogin({...u,email})}
-      else{setErr("Credenciales incorrectas. Contacta al administrador.");setLoading(false);}
+      if(u&&u.password===pass){
+        const userData = {...u, email: email.toLowerCase()};
+        localStorage.setItem("tikpanel_user", JSON.stringify(userData));
+        onLogin(userData);
+      } else {
+        setErr("Credenciales incorrectas.");
+        setLoading(false);
+      }
     },800);
   };
 
   return(
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",
       background:"#0a0a0f",position:"relative",overflow:"hidden",padding:20}}>
-      {/* Background glow */}
       <div style={{position:"fixed",width:700,height:700,borderRadius:"50%",
         background:"radial-gradient(circle,rgba(254,44,85,0.12) 0%,transparent 70%)",
         top:"50%",left:"50%",transform:"translate(-50%,-50%)",pointerEvents:"none"}}/>
-      <div style={{position:"fixed",width:400,height:400,borderRadius:"50%",
-        background:"radial-gradient(circle,rgba(37,244,238,0.06) 0%,transparent 70%)",
-        top:"20%",right:"10%",pointerEvents:"none"}}/>
-
       <div className="animate-in" style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:24,
         padding:"48px 40px",width:"100%",maxWidth:420,position:"relative",zIndex:1,
         boxShadow:"0 40px 100px rgba(0,0,0,0.7)"}}>
-
-        {/* Logo */}
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
           <div style={{width:42,height:42,borderRadius:12,
             background:"linear-gradient(135deg,#fe2c55,#25f4ee)",
@@ -114,13 +110,11 @@ function LoginScreen({onLogin}){
         <p style={{color:"#555",fontSize:13,marginBottom:28,fontWeight:500}}>
           Plataforma de control para streamers de TikTok
         </p>
-
         <div style={{display:"inline-flex",alignItems:"center",gap:8,
           background:"rgba(254,44,85,0.08)",border:"1px solid rgba(254,44,85,0.2)",
           borderRadius:20,padding:"5px 14px",fontSize:12,color:"#fe2c55",marginBottom:32,fontWeight:600}}>
           🔒 Acceso solo por invitación
         </div>
-
         <div style={{marginBottom:18}}>
           <label style={{display:"block",color:"#666",fontSize:11,fontWeight:600,
             letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Correo electrónico</label>
@@ -130,7 +124,6 @@ function LoginScreen({onLogin}){
             style={{width:"100%",background:"#0d0d15",border:"1px solid #2a2a3a",borderRadius:12,
               padding:"13px 16px",color:"#fff",fontSize:14,outline:"none"}}/>
         </div>
-
         <div style={{marginBottom:20}}>
           <label style={{display:"block",color:"#666",fontSize:11,fontWeight:600,
             letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Contraseña</label>
@@ -140,17 +133,14 @@ function LoginScreen({onLogin}){
             style={{width:"100%",background:"#0d0d15",border:"1px solid #2a2a3a",borderRadius:12,
               padding:"13px 16px",color:"#fff",fontSize:14,outline:"none"}}/>
         </div>
-
         {err&&<div style={{background:"rgba(254,44,85,0.08)",border:"1px solid rgba(254,44,85,0.25)",
           borderRadius:10,padding:"10px 14px",color:"#fe2c55",fontSize:13,marginBottom:16}}>{err}</div>}
-
         <button onClick={handle} disabled={loading}
           style={{width:"100%",background:loading?"#2a2a3a":"linear-gradient(135deg,#fe2c55,#ff6b81)",
             border:"none",borderRadius:12,padding:"14px",color:"#fff",fontSize:15,fontWeight:700,
             cursor:loading?"not-allowed":"pointer",transition:"all 0.2s",letterSpacing:0.3}}>
           {loading?"Verificando...":"Ingresar →"}
         </button>
-
         <p style={{color:"#333",fontSize:12,textAlign:"center",marginTop:24}}>
           ¿No tienes acceso? Solicítalo al administrador
         </p>
@@ -177,121 +167,66 @@ function App(){
   const [ttsVol,setTtsVol]=useState(80);
   const [voices, setVoices]=useState(DEFAULT_VOICES);
   const [loadingVoices, setLoadingVoices]=useState(false);
-  const ttsOnRef = useRef(true);
+  const [likeRanking, setLikeRanking]=useState([]);
+  const [tapRanking, setTapRanking]=useState([]);
+  const socketRef = useRef(null);
   const ttsVolRef = useRef(80);
-  const activeVoiceRef = useRef("cgSgspJ2msm6clMCkdW9");
+  const ttsOnRef = useRef(true);
 
   useEffect(()=>{ ttsOnRef.current = ttsOn; },[ttsOn]);
   useEffect(()=>{ ttsVolRef.current = ttsVol; },[ttsVol]);
 
-  const applyVoice = () => {
-    activeVoiceRef.current = ttsVoice;
-    setActiveVoice(ttsVoice);
-    setVoiceApplied(true);
-    setTimeout(()=>setVoiceApplied(false), 2000);
-    // Notificar al servidor la nueva voz
-    fetch(`${SERVER_URL}/setvoice`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ voiceId: ttsVoice })
-    }).catch(()=>{});
-  };
+  // Cargar sesión guardada
+  useEffect(()=>{
+    const savedUser = localStorage.getItem("tikpanel_user");
+    if(savedUser){
+      try{
+        const u = JSON.parse(savedUser);
+        setUser(u);
+      }catch(e){}
+    }
+  },[]);
 
-  // Cargar voces desde ElevenLabs
+  // Cargar voces desde ElevenLabs (solo para mostrar nombres)
   useEffect(()=>{
     setLoadingVoices(true);
-    fetch("https://api.elevenlabs.io/v1/voices", {
-      headers: { "xi-api-key": ELEVENLABS_API_KEY }
-    })
-    .then(r=>r.json())
-    .then(data=>{
-      if(data.voices && data.voices.length > 0){
-        const mapped = data.voices.map(v=>({ id: v.voice_id, name: v.name }));
-        setVoices([...DEFAULT_VOICES, ...mapped.filter(v=>!DEFAULT_VOICES.find(d=>d.id===v.id))]);
-      }
-    })
-    .catch(()=>{}) // Si falla usa las predefinidas
-    .finally(()=>setLoadingVoices(false));
+    fetch("https://api.elevenlabs.io/v1/voices")
+      .then(r=>r.json())
+      .then(data=>{
+        if(data.voices && data.voices.length > 0){
+          const mapped = data.voices.map(v=>({ id: v.voice_id, name: v.name }));
+          setVoices([...DEFAULT_VOICES, ...mapped.filter(v=>!DEFAULT_VOICES.find(d=>d.id===v.id))]);
+        }
+      })
+      .catch(()=>{})
+      .finally(()=>setLoadingVoices(false));
   },[]);
-  const [alertsOn,setAlertsOn]=useState(true);
-  const [sound,setSound]=useState(SOUNDS[0]);
-  const [sidebarOpen,setSidebarOpen]=useState(false);
-  const [likeRanking, setLikeRanking]=useState([]);
-  const [tapRanking, setTapRanking]=useState([]);
 
+  // Configurar socket y eventos
   useEffect(()=>{
-    // Conectar socket al servidor Railway
     const socket = io(SERVER_URL, { transports: ["websocket"] });
+    socketRef.current = socket;
 
     socket.on("event", (data) => {
       if(data.type === "chat"){
         setLog(p=>[{type:"msg", text:`💬 @${data.user}: ${data.comment}`},...p].slice(0,25));
         setStats(p=>({...p, messages: p.messages+1}));
-        // TTS para comentarios
-        if(ttsOnRef.current && window.speechSynthesis){
-          const msg = new SpeechSynthesisUtterance(`${data.user} dice: ${data.comment}`);
-          msg.lang = "es-MX";
-          msg.volume = ttsVolRef.current / 100;
-          msg.rate = 1.1;
-          window.speechSynthesis.speak(msg);
-        }
+        // TTS manejado por el servidor, no hacemos nada aquí
       } else if(data.type === "gift"){
         setLog(p=>[{type:"gift", text:`🎁 @${data.user} envió ${data.giftCount}x ${data.giftName}`},...p].slice(0,25));
         setStats(p=>({...p, gifts: p.gifts+1}));
-        // Ranking tap tap (por diamantes)
-        setTapRanking(prev=>{
-          const diamonds = data.diamondCount || 1;
-          const existing = prev.find(u=>u.user===data.user);
-          let updated;
-          if(existing){
-            updated = prev.map(u=>u.user===data.user ? {...u, diamonds: u.diamonds+diamonds, gifts: u.gifts+1} : u);
-          } else {
-            updated = [...prev, {user:data.user, nickname:data.nickname||data.user, diamonds, gifts:1}];
-          }
-          return updated.sort((a,b)=>b.diamonds-a.diamonds).slice(0,5);
-        });
-        // TTS para regalos
-        if(ttsOnRef.current && window.speechSynthesis){
-          const msg = new SpeechSynthesisUtterance(`${data.user} envió ${data.giftCount} ${data.giftName}`);
-          msg.lang = "es-MX";
-          msg.volume = ttsVolRef.current / 100;
-          window.speechSynthesis.speak(msg);
-        }
       } else if(data.type === "follow"){
         setLog(p=>[{type:"follow", text:`➕ @${data.user} te siguió`},...p].slice(0,25));
         setStats(p=>({...p, follows: p.follows+1}));
-        // TTS para seguidores
-        if(ttsOnRef.current && window.speechSynthesis){
-          const msg = new SpeechSynthesisUtterance(`${data.user} te siguió`);
-          msg.lang = "es-MX";
-          msg.volume = ttsVolRef.current / 100;
-          window.speechSynthesis.speak(msg);
-        }
       } else if(data.type === "like"){
         setLog(p=>[{type:"msg", text:`❤️ @${data.user} dio ${data.likeCount} likes`},...p].slice(0,25));
         setStats(p=>({...p, likes: p.likes + (data.likeCount || 1)}));
-        // Animación de corazones
         setLikeAnim(true);
         setTimeout(()=>setLikeAnim(false), 300);
         const id = Date.now();
         setFloatingHearts(p=>[...p, {id, x: Math.random()*60+20}]);
         setTimeout(()=>setFloatingHearts(p=>p.filter(h=>h.id!==id)), 1000);
-        // Ranking de likes
-        setLikeRanking(prev=>{
-          const existing = prev.find(u=>u.user===data.user);
-          let updated;
-          if(existing){
-            updated = prev.map(u=>u.user===data.user ? {...u, count: u.count+(data.likeCount||1)} : u);
-          } else {
-            updated = [...prev, {user:data.user, nickname:data.user, count:data.likeCount||1}];
-          }
-          return updated.sort((a,b)=>b.count-a.count).slice(0,5);
-        });
       }
-    });
-
-    socket.on("gift_alert", (data) => {
-      setLog(p=>[{type:"gift", text:`🎁 ALERTA: ${data.message}`},...p].slice(0,25));
     });
 
     socket.on("tts_audio", (data) => {
@@ -315,8 +250,19 @@ function App(){
       setLog(p=>[{type:"sys", text:`⚠️ Error: ${data.message}`},...p]);
     });
 
-    return () => socket.disconnect();
-  },[]);
+    socket.on("ranking_update", (data) => {
+      // Actualizar rankings con los datos acumulados del servidor
+      setTapRanking(data.diamonds || []);
+      setLikeRanking(data.likes || []);
+      setStats(prev => ({
+        ...prev,
+        likes: data.totalLikes !== undefined ? data.totalLikes : prev.likes,
+        gifts: data.totalDiamonds !== undefined ? data.totalDiamonds : prev.gifts, // usamos gifts como total diamantes? mejor separar
+      }));
+    });
+
+    return () => { socket.disconnect(); };
+  }, []);
 
   useEffect(()=>{
     if(!connecting)return;
@@ -324,7 +270,7 @@ function App(){
     return()=>clearInterval(t);
   },[connecting]);
 
-  const connect=async()=>{
+  const connect = async()=>{
     if(!tiktokUser.trim())return;
     setConnecting(true);
     try {
@@ -338,6 +284,16 @@ function App(){
         setConnecting(false); setConnected(true);
         setStats({viewers:0,gifts:0,follows:0,messages:0,likes:0});
         setLog([{type:"sys", text:`✅ Conectado a @${tiktokUser} — esperando actividad del LIVE`}]);
+        // Unirse a la sala del LIVE para recibir ranking actualizado
+        if(socketRef.current) {
+          socketRef.current.emit("join_live", tiktokUser);
+          // Enviar la voz actual al servidor
+          await fetch(`${SERVER_URL}/setvoice`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: tiktokUser, voiceId: activeVoice })
+          });
+        }
       } else {
         setConnecting(false);
         setLog([{type:"sys", text:`⚠️ ${data.error || "No se pudo conectar. ¿Estás en LIVE?"}`}]);
@@ -348,13 +304,33 @@ function App(){
     }
   };
 
-  const disconnect=async()=>{
+  const disconnect = async()=>{
     await fetch(`${SERVER_URL}/disconnect`, {
       method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({username: tiktokUser})
     }).catch(()=>{});
-    setConnected(false); setLog([]);
-    setStats({viewers:0,gifts:0,follows:0,messages:0});
+    setConnected(false);
+    setLog([]);
+    setStats({viewers:0,gifts:0,follows:0,messages:0,likes:0});
+    setTapRanking([]);
+    setLikeRanking([]);
+  };
+
+  const applyVoice = async () => {
+    if(!ttsOn) return;
+    setActiveVoice(ttsVoice);
+    setVoiceApplied(true);
+    setTimeout(()=>setVoiceApplied(false), 2000);
+    // Enviar al servidor la nueva voz si estamos conectados
+    if(connected && tiktokUser) {
+      try {
+        await fetch(`${SERVER_URL}/setvoice`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: tiktokUser, voiceId: ttsVoice })
+        });
+      } catch(e) { console.error("Error al cambiar la voz:", e); }
+    }
   };
 
   if(!user) return <LoginScreen onLogin={setUser}/>;
@@ -377,20 +353,11 @@ function App(){
 
   return(
     <div style={{display:"flex",minHeight:"100vh",background:"#0a0a0f"}}>
-
-      {/* Mobile overlay */}
-      {sidebarOpen&&<div onClick={()=>setSidebarOpen(false)}
-        style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:40}}/>}
-
-      {/* Sidebar */}
+      {/* Sidebar fijo para escritorio, móvil con toggle */}
       <div style={{width:240,background:"#10101a",borderRight:"1px solid #1e1e2e",
         display:"flex",flexDirection:"column",padding:"24px 14px",
         position:"fixed",top:0,bottom:0,left:0,zIndex:50,
-        transform:sidebarOpen?"translateX(0)":"translateX(-100%)",
-        transition:"transform 0.3s ease",
-        "@media(min-width:768px)":{transform:"translateX(0)"}}}>
-
-        {/* Logo */}
+        transform:"translateX(0)",transition:"transform 0.3s ease"}}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:24,paddingLeft:6}}>
           <div style={{width:32,height:32,borderRadius:9,
             background:"linear-gradient(135deg,#fe2c55,#25f4ee)",
@@ -400,21 +367,17 @@ function App(){
             ik<span style={{color:"#fe2c55"}}>Panel</span>
           </span>
         </div>
-
-        {/* User */}
         <div style={{display:"flex",alignItems:"center",gap:10,
           background:"#1a1a2a",borderRadius:12,padding:"12px 12px",marginBottom:14}}>
           <div style={{width:34,height:34,borderRadius:"50%",flexShrink:0,
             background:"linear-gradient(135deg,#fe2c55,#25f4ee)",
             display:"flex",alignItems:"center",justifyContent:"center",
-            fontWeight:800,fontSize:15,fontFamily:"'Syne',sans-serif"}}>{user.avatar}</div>
+            fontWeight:800,fontSize:15}}>{user.avatar}</div>
           <div style={{overflow:"hidden"}}>
             <div style={{fontSize:13,fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{user.name}</div>
             <div style={{fontSize:11,color:"#fe2c55",fontWeight:600,marginTop:2}}>{user.plan}</div>
           </div>
         </div>
-
-        {/* Status */}
         <div style={{display:"flex",alignItems:"center",gap:8,
           background:connected?"rgba(37,244,238,0.06)":"rgba(255,255,255,0.03)",
           border:`1px solid ${connected?"rgba(37,244,238,0.25)":"#1e1e2e"}`,
@@ -424,50 +387,35 @@ function App(){
             background:connected?"#25f4ee":"#333",
             boxShadow:connected?"0 0 8px #25f4ee":"none"}}
             className={connected?"live-dot":""}/>
-          <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-            {connected?`@${tiktokUser}`:"Sin conexión"}
-          </span>
+          <span>{connected?`@${tiktokUser}`:"Sin conexión"}</span>
         </div>
-
-        {/* Nav */}
         <nav style={{display:"flex",flexDirection:"column",gap:3,flex:1}}>
           {tabs.map(t=>(
-            <button key={t.id} onClick={()=>{setTab(t.id);setSidebarOpen(false);}}
+            <button key={t.id} onClick={()=>setTab(t.id)}
               style={{display:"flex",alignItems:"center",gap:12,
                 background:tab===t.id?"rgba(254,44,85,0.1)":"transparent",
                 border:tab===t.id?"1px solid rgba(254,44,85,0.2)":"1px solid transparent",
                 borderRadius:10,padding:"11px 12px",
                 color:tab===t.id?"#fff":"#555",cursor:"pointer",
-                fontSize:13,fontWeight:tab===t.id?700:500,textAlign:"left",
-                transition:"all 0.15s"}}>
+                fontSize:13,fontWeight:tab===t.id?700:500,textAlign:"left"}}>
               <span style={{fontSize:17}}>{t.icon}</span>{t.label}
             </button>
           ))}
         </nav>
-
-        <button onClick={()=>{setUser(null);setConnected(false);}}
+        <button onClick={()=>{localStorage.removeItem("tikpanel_user"); setUser(null); setConnected(false);}}
           style={{background:"transparent",border:"1px solid #1e1e2e",borderRadius:10,
             padding:"10px 12px",color:"#444",cursor:"pointer",fontSize:13,marginTop:8}}>
           Cerrar sesión
         </button>
       </div>
 
-      {/* Main */}
-      <div style={{flex:1,marginLeft:0,display:"flex",flexDirection:"column",minWidth:0}}>
-
-        {/* Top bar */}
+      <div style={{flex:1,marginLeft:240,display:"flex",flexDirection:"column",minWidth:0}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
           padding:"16px 20px",borderBottom:"1px solid #1e1e2e",
           background:"#0a0a0f",position:"sticky",top:0,zIndex:30}}>
           <div style={{display:"flex",alignItems:"center",gap:14}}>
-            <button onClick={()=>setSidebarOpen(!sidebarOpen)}
-              style={{background:"#1a1a2a",border:"1px solid #2a2a3a",borderRadius:8,
-                width:36,height:36,cursor:"pointer",color:"#fff",fontSize:16,
-                display:"flex",alignItems:"center",justifyContent:"center"}}>☰</button>
-            <div>
-              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:17}}>
-                {tabs.find(t=>t.id===tab)?.icon} {tabs.find(t=>t.id===tab)?.label}
-              </div>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:17}}>
+              {tabs.find(t=>t.id===tab)?.icon} {tabs.find(t=>t.id===tab)?.label}
             </div>
           </div>
           {connected&&(
@@ -480,37 +428,33 @@ function App(){
           )}
         </div>
 
-        {/* Content */}
         <div style={{padding:20,flex:1,overflowY:"auto"}}>
-
-          {/* DASHBOARD */}
           {tab==="dashboard"&&(
             <div className="animate-in">
-              {/* Connect */}
               <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20,marginBottom:16}}>
                 <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,marginBottom:16}}>🎯 Conectar al LIVE</div>
                 <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
                   <div style={{display:"flex",alignItems:"center",flex:1,minWidth:160,
                     background:"#0d0d15",border:"1px solid #2a2a3a",borderRadius:10,overflow:"hidden"}}>
-                    <span style={{color:"#fe2c55",fontWeight:800,padding:"0 12px",fontSize:16,flexShrink:0}}>@</span>
+                    <span style={{color:"#fe2c55",fontWeight:800,padding:"0 12px",fontSize:16}}>@</span>
                     <input value={tiktokUser} onChange={e=>setTiktokUser(e.target.value)}
                       placeholder="usuario_tiktok" disabled={connected||connecting}
                       style={{flex:1,background:"transparent",border:"none",padding:"12px 8px 12px 0",
-                        color:"#fff",fontSize:14,outline:"none",minWidth:0}}/>
+                        color:"#fff",fontSize:14,outline:"none"}}/>
                   </div>
                   {!connected?(
                     <button onClick={connect} disabled={connecting||!tiktokUser}
                       style={{background:(!connecting&&tiktokUser)?"linear-gradient(135deg,#fe2c55,#ff6b81)":"#1e1e2e",
                         border:"none",borderRadius:10,padding:"12px 20px",
                         color:(!connecting&&tiktokUser)?"#fff":"#444",
-                        fontWeight:700,cursor:(!connecting&&tiktokUser)?"pointer":"not-allowed",fontSize:14,whiteSpace:"nowrap"}}>
+                        fontWeight:700,cursor:(!connecting&&tiktokUser)?"pointer":"not-allowed",fontSize:14}}>
                       {connecting?`Conectando${dots}`:"Conectar"}
                     </button>
                   ):(
                     <button onClick={disconnect}
                       style={{background:"rgba(254,44,85,0.1)",border:"1px solid rgba(254,44,85,0.25)",
                         borderRadius:10,padding:"12px 20px",color:"#fe2c55",
-                        fontWeight:700,cursor:"pointer",fontSize:14,whiteSpace:"nowrap"}}>
+                        fontWeight:700,cursor:"pointer",fontSize:14}}>
                       Desconectar
                     </button>
                   )}
@@ -522,8 +466,6 @@ function App(){
                   </div>
                 )}
               </div>
-
-              {/* Stats */}
               <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:12,marginBottom:16}}>
                 {[
                   {label:"Espectadores",value:stats.viewers,icon:"👁️",color:"#25f4ee"},
@@ -535,34 +477,29 @@ function App(){
                     borderRadius:14,padding:"18px 16px",textAlign:"center"}}>
                     <div style={{fontSize:22,marginBottom:6}}>{s.icon}</div>
                     <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:26,color:s.color}}>{s.value.toLocaleString()}</div>
-                    <div style={{color:"#444",fontSize:11,marginTop:4,fontWeight:600,letterSpacing:0.5}}>{s.label}</div>
+                    <div style={{color:"#444",fontSize:11,marginTop:4,fontWeight:600}}>{s.label}</div>
                   </div>
                 ))}
               </div>
-
-              {/* Likes card especial con animación */}
               <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:14,
                 padding:"18px 20px",marginBottom:16,display:"flex",alignItems:"center",
                 justifyContent:"space-between",position:"relative",overflow:"hidden"}}>
                 <div style={{display:"flex",alignItems:"center",gap:14}}>
-                  <div className={likeAnim?"heart-pop":""} style={{fontSize:36,transition:"all 0.2s"}}>❤️</div>
+                  <div className={likeAnim?"heart-pop":""} style={{fontSize:36}}>❤️</div>
                   <div>
                     <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:32,
                       color:"#fe2c55",lineHeight:1}}>{stats.likes.toLocaleString()}</div>
-                    <div style={{color:"#555",fontSize:12,fontWeight:600,letterSpacing:0.5,marginTop:4}}>LIKES EN EL LIVE</div>
+                    <div style={{color:"#555",fontSize:12,fontWeight:600,marginTop:4}}>LIKES EN EL LIVE</div>
                   </div>
                 </div>
                 <div style={{textAlign:"right"}}>
                   <div style={{color:"#333",fontSize:12}}>Por minuto</div>
                   <div style={{color:"#fe2c55",fontWeight:700,fontSize:18}}>{connected?"activo":"--"}</div>
                 </div>
-                {/* Corazones flotantes */}
                 {floatingHearts.map(h=>(
                   <span key={h.id} className="float-heart" style={{left:`${h.x}%`,bottom:10}}>❤️</span>
                 ))}
               </div>
-
-              {/* Log */}
               <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20}}>
                 <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,marginBottom:14}}>📋 Actividad en tiempo real</div>
                 <div style={{background:"#0d0d15",borderRadius:10,padding:14,height:220,overflowY:"auto",display:"flex",flexDirection:"column",gap:6}}>
@@ -583,7 +520,6 @@ function App(){
             </div>
           )}
 
-          {/* TTS */}
           {tab==="tts"&&(
             <div className="animate-in">
               <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20,marginBottom:16}}>
@@ -601,25 +537,22 @@ function App(){
                       borderRadius:10,padding:"11px 14px",color:ttsOn?"#fff":"#444",fontSize:14,outline:"none",marginBottom:10}}>
                     {voices.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}
                   </select>
-                  {/* Voz activa actual */}
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
                     background:"rgba(37,244,238,0.05)",border:"1px solid rgba(37,244,238,0.15)",
                     borderRadius:10,padding:"10px 14px",marginBottom:10}}>
                     <div>
-                      <div style={{color:"#555",fontSize:11,fontWeight:600,letterSpacing:0.5}}>VOZ ACTIVA EN EL LIVE</div>
+                      <div style={{color:"#555",fontSize:11,fontWeight:600}}>VOZ ACTIVA EN EL LIVE</div>
                       <div style={{color:"#25f4ee",fontSize:13,fontWeight:700,marginTop:3}}>
                         {voices.find(v=>v.id===activeVoice)?.name || "Bella (Español Natural)"}
                       </div>
                     </div>
-                    <div style={{width:8,height:8,borderRadius:"50%",background:"#25f4ee",
-                      boxShadow:"0 0 8px #25f4ee"}} className="live-dot"/>
+                    <div style={{width:8,height:8,borderRadius:"50%",background:"#25f4ee",boxShadow:"0 0 8px #25f4ee"}} className="live-dot"/>
                   </div>
                   <button onClick={applyVoice} disabled={!ttsOn || ttsVoice===activeVoice}
                     style={{width:"100%",background:(!ttsOn||ttsVoice===activeVoice)?"#1a1a2a":"linear-gradient(135deg,#fe2c55,#ff6b81)",
                       border:"none",borderRadius:10,padding:"12px",
                       color:(!ttsOn||ttsVoice===activeVoice)?"#444":"#fff",
-                      fontWeight:700,cursor:(!ttsOn||ttsVoice===activeVoice)?"not-allowed":"pointer",
-                      fontSize:14,transition:"all 0.2s"}}>
+                      fontWeight:700,cursor:(!ttsOn||ttsVoice===activeVoice)?"not-allowed":"pointer",fontSize:14}}>
                     {voiceApplied ? "✅ ¡Voz aplicada!" : ttsVoice===activeVoice ? "✓ Esta voz ya está activa" : "Aplicar voz al LIVE"}
                   </button>
                 </div>
@@ -634,115 +567,39 @@ function App(){
                 <div style={{background:"rgba(37,244,238,0.05)",border:"1px solid rgba(37,244,238,0.15)",
                   borderRadius:10,padding:"14px 16px",color:"#aaa",fontSize:13,lineHeight:1.7,marginBottom:20}}>
                   💡 <strong style={{color:"#25f4ee"}}>¿Cómo funciona?</strong><br/>
-                  El TTS lee en voz alta los mensajes y regalos de tu LIVE automáticamente para que nunca te pierdas nada.
+                  El TTS lee en voz alta los mensajes, regalos y seguidores usando la voz de ElevenLabs que elijas.
                 </div>
-                <div style={{display:"flex",flexDirection:"column",gap:12}}>
-                  {["Regalos","Mensajes del chat","Nuevos seguidores","Suscripciones"].map(o=>(
-                    <label key={o} style={{display:"flex",alignItems:"center",gap:10,color:"#aaa",fontSize:14,cursor:"pointer"}}>
-                      <input type="checkbox" defaultChecked disabled={!ttsOn} style={{accentColor:"#fe2c55",width:16,height:16}}/>
-                      {o}
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20}}>
-                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,marginBottom:14}}>🎤 Probar TTS</div>
-                <input id="ttsTest" placeholder="Escribe un texto para probar..." disabled={!ttsOn}
-                  style={{width:"100%",background:"#0d0d15",border:"1px solid #2a2a3a",borderRadius:10,
-                    padding:"12px 14px",color:"#fff",fontSize:14,outline:"none",marginBottom:12}}/>
-                <button disabled={!ttsOn} onClick={async()=>{
-                  const text = document.getElementById("ttsTest").value || "Hola, esto es una prueba de TTS con ElevenLabs";
-                  try {
-                    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ttsVoice}`, {
-                      method: "POST",
-                      headers: { "xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json", "Accept": "audio/mpeg" },
-                      body: JSON.stringify({ text, model_id: "eleven_multilingual_v2", voice_settings: { stability: 0.5, similarity_boost: 0.75 } })
-                    });
-                    const blob = await res.blob();
-                    const url = URL.createObjectURL(blob);
-                    const audio = new Audio(url);
-                    audio.volume = ttsVol / 100;
-                    audio.play();
-                  } catch(e) { alert("Error al reproducir TTS"); }
-                }}
-                  style={{background:ttsOn?"rgba(254,44,85,0.1)":"transparent",
-                    border:"1px solid rgba(254,44,85,0.2)",borderRadius:10,
-                    padding:"10px 20px",color:ttsOn?"#fe2c55":"#333",fontWeight:700,cursor:ttsOn?"pointer":"not-allowed",fontSize:13}}>
-                  ▶ Reproducir prueba
-                </button>
               </div>
             </div>
           )}
 
-          {/* ALERTS */}
           {tab==="alerts"&&(
             <div className="animate-in">
               <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20,marginBottom:16}}>
                 <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,marginBottom:20}}>🔔 Alertas de Sonido</div>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24}}>
                   <span style={{color:"#aaa",fontSize:14}}>Activar alertas</span>
-                  <Toggle on={alertsOn} onChange={()=>setAlertsOn(!alertsOn)}/>
-                </div>
-                <div style={{marginBottom:24}}>
-                  <label style={{display:"block",color:"#666",fontSize:11,fontWeight:600,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Sonido de regalo</label>
-                  <select value={sound} onChange={e=>setSound(e.target.value)} disabled={!alertsOn}
-                    style={{width:"100%",background:"#0d0d15",border:"1px solid #2a2a3a",
-                      borderRadius:10,padding:"11px 14px",color:alertsOn?"#fff":"#444",fontSize:14,outline:"none"}}>
-                    {SOUNDS.map(s=><option key={s}>{s}</option>)}
-                  </select>
+                  <Toggle on={true} onChange={()=>{}}/>
                 </div>
                 {[
                   {event:"Nuevo seguidor",icon:"➕",color:"#25f4ee"},
                   {event:"Regalo recibido",icon:"🎁",color:"#fe2c55"},
-                  {event:"Suscripción",icon:"⭐",color:"#ffd700"},
-                  {event:"Compartir LIVE",icon:"📤",color:"#a78bfa"},
                 ].map(item=>(
                   <div key={item.event} style={{display:"flex",alignItems:"center",gap:14,
                     padding:"14px 0",borderBottom:"1px solid #1a1a2a"}}>
-                    <div style={{width:38,height:38,borderRadius:10,flexShrink:0,
+                    <div style={{width:38,height:38,borderRadius:10,
                       background:item.color+"15",color:item.color,
                       display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>
                       {item.icon}
                     </div>
                     <span style={{color:"#aaa",fontSize:14,flex:1}}>{item.event}</span>
-                    <input type="checkbox" defaultChecked disabled={!alertsOn}
-                      style={{accentColor:"#fe2c55",width:16,height:16}}/>
+                    <input type="checkbox" defaultChecked style={{accentColor:"#fe2c55",width:16,height:16}}/>
                   </div>
                 ))}
-              </div>
-
-              {/* Mensajes personalizados por regalo */}
-              <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20}}>
-                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,marginBottom:6}}>🎁 Mensajes TTS por Regalo</div>
-                <div style={{color:"#555",fontSize:12,marginBottom:16}}>Usa <span style={{color:"#25f4ee"}}>@usuario</span> para insertar el nombre automáticamente</div>
-
-                {[
-                  {gift:"🌹 Rosa", msg:"¡Bienvenido @usuario al live de Luz Álva! Gracias por tu hermosa rosa, qué bonito detalle!"},
-                  {gift:"🦁 León", msg:"¡Woow @usuario mandó un león! Muchas gracias por ese increíble regalo, eres lo máximo!"},
-                  {gift:"🌌 Universo", msg:"¡No puede ser! ¡@usuario mandó el universo! Eso es demasiado generoso!"},
-                  {gift:"❤️ Corazón", msg:"¡Aww @usuario mandó un corazón! Gracias por tanto amor en el live!"},
-                  {gift:"💎 Diamante", msg:"¡@usuario es demasiado bueno! Mandó diamantes, muchas gracias!"},
-                  {gift:"🎁 Otros regalos", msg:"¡Gracias @usuario por el regalo! Qué lindo apoyo en el live de Luz Álva!"},
-                ].map((item,i)=>(
-                  <div key={i} style={{marginBottom:14}}>
-                    <div style={{color:"#fe2c55",fontSize:12,fontWeight:700,marginBottom:6}}>{item.gift}</div>
-                    <textarea defaultValue={item.msg}
-                      style={{width:"100%",background:"#0d0d15",border:"1px solid #2a2a3a",
-                        borderRadius:10,padding:"10px 12px",color:"#aaa",fontSize:12,
-                        outline:"none",resize:"vertical",minHeight:60,lineHeight:1.5,
-                        boxSizing:"border-box"}}/>
-                  </div>
-                ))}
-                <button style={{background:"linear-gradient(135deg,#fe2c55,#ff6b81)",
-                  border:"none",borderRadius:10,padding:"12px",color:"#fff",
-                  fontWeight:700,cursor:"pointer",fontSize:14,width:"100%"}}>
-                  💾 Guardar mensajes
-                </button>
               </div>
             </div>
           )}
 
-          {/* CHATBOT */}
           {tab==="chat"&&(
             <div className="animate-in">
               <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20}}>
@@ -757,7 +614,7 @@ function App(){
                   {trigger:"!redes",response:"Sígueme en todas mis redes 📱"},
                 ].map((cmd,i)=>(
                   <div key={i} style={{display:"flex",alignItems:"center",gap:10,
-                    background:"#0d0d15",borderRadius:10,padding:"12px 14px",marginBottom:10,flexWrap:"wrap",gap:8}}>
+                    background:"#0d0d15",borderRadius:10,padding:"12px 14px",marginBottom:10,flexWrap:"wrap"}}>
                     <span style={{color:"#25f4ee",fontWeight:700,fontSize:13,minWidth:70}}>{cmd.trigger}</span>
                     <span style={{color:"#333"}}>→</span>
                     <span style={{color:"#aaa",fontSize:13,flex:1}}>{cmd.response}</span>
@@ -772,11 +629,8 @@ function App(){
             </div>
           )}
 
-          {/* RANKING */}
           {tab==="ranking"&&(
             <div className="animate-in">
-
-              {/* Top Tap Tap */}
               <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20,marginBottom:16}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
                   <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14}}>🎁 Top Tap Tap (Regalos)</div>
@@ -794,14 +648,14 @@ function App(){
                   return(
                     <div key={item.user} style={{marginBottom:14}}>
                       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-                        <span style={{fontSize:20,flexShrink:0}}>{medals[i]}</span>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                            <span style={{color:"#fff",fontSize:13,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>@{item.nickname}</span>
-                            <span style={{color:colors[i],fontWeight:800,fontSize:13,flexShrink:0,marginLeft:8}}>💎 {item.diamonds.toLocaleString()}</span>
+                        <span style={{fontSize:20}}>{medals[i]}</span>
+                        <div style={{flex:1}}>
+                          <div style={{display:"flex",justifyContent:"space-between"}}>
+                            <span style={{color:"#fff",fontSize:13,fontWeight:700}}>@{item.nickname}</span>
+                            <span style={{color:colors[i],fontWeight:800,fontSize:13}}>💎 {item.diamonds.toLocaleString()}</span>
                           </div>
                           <div style={{height:6,background:"#1a1a2a",borderRadius:3,marginTop:6,overflow:"hidden"}}>
-                            <div style={{height:"100%",width:`${pct}%`,borderRadius:3,transition:"width 0.5s ease",
+                            <div style={{height:"100%",width:`${pct}%`,borderRadius:3,
                               background:i===0?"linear-gradient(90deg,#ffd700,#ffaa00)":i===1?"linear-gradient(90deg,#aaa,#888)":i===2?"linear-gradient(90deg,#cd7f32,#a0522d)":"#2a2a3a"}}/>
                           </div>
                         </div>
@@ -811,7 +665,6 @@ function App(){
                 })}
               </div>
 
-              {/* Top Likes */}
               <div style={{background:"#13131a",border:"1px solid #1e1e2e",borderRadius:16,padding:20}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
                   <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14}}>❤️ Top Likes del LIVE</div>
@@ -828,33 +681,24 @@ function App(){
                   return(
                     <div key={item.user} style={{marginBottom:14}}>
                       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-                        <span style={{fontSize:20,flexShrink:0}}>{medals[i]}</span>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                            <span style={{color:"#fff",fontSize:13,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>@{item.nickname}</span>
-                            <span style={{color:"#fe2c55",fontWeight:800,fontSize:13,flexShrink:0,marginLeft:8}}>❤️ {item.count.toLocaleString()}</span>
+                        <span style={{fontSize:20}}>{medals[i]}</span>
+                        <div style={{flex:1}}>
+                          <div style={{display:"flex",justifyContent:"space-between"}}>
+                            <span style={{color:"#fff",fontSize:13,fontWeight:700}}>@{item.nickname}</span>
+                            <span style={{color:"#fe2c55",fontWeight:800,fontSize:13}}>❤️ {item.count.toLocaleString()}</span>
                           </div>
-                          <div style={{height:6,background:"#1a1a2a",borderRadius:3,marginTop:6,overflow:"hidden"}}>
+                          <div style={{height:6,background:"#1a1a2a",borderRadius:3,marginTop:6}}>
                             <div style={{height:"100%",width:`${pct}%`,borderRadius:3,
-                              background:"linear-gradient(90deg,#fe2c55,#ff6b81)",transition:"width 0.5s ease"}}/>
+                              background:"linear-gradient(90deg,#fe2c55,#ff6b81)"}}/>
                           </div>
                         </div>
                       </div>
                     </div>
                   );
                 })}
-                {likeRanking.length>0&&(
-                  <div style={{borderTop:"1px solid #1a1a2a",paddingTop:14,marginTop:4,
-                    display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <span style={{color:"#555",fontSize:12}}>Total likes del LIVE</span>
-                    <span style={{color:"#fe2c55",fontWeight:800,fontSize:18}}>{stats.likes.toLocaleString()} ❤️</span>
-                  </div>
-                )}
               </div>
-
             </div>
           )}
-
         </div>
       </div>
     </div>
