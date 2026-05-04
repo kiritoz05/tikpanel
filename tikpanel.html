@@ -702,11 +702,11 @@ function App() {
       });
     });
     sock.on("battle", d => {
-      setBattleRaw(JSON.stringify(d, null, 2)); // debug
-      // Normalizar equipos aunque vengan con estructura variable
       if (d && d.teams) {
         const normalized = {
           ...d,
+          // ownerUsername: usar el que manda el servidor o el usuario conectado como fallback
+          ownerUsername: (d.ownerUsername || tUser || "").toLowerCase().replace(/^@/,""),
           teams: d.teams.map(t => ({
             hostName:     t.hostName     || t.uniqueId  || t.displayId  || "?",
             hostNickname: t.hostNickname || t.nickname  || t.hostName   || "?",
@@ -1413,17 +1413,36 @@ function App() {
                   </div>
 
                   {battle.teams && battle.teams.length >= 2 ? (() => {
-                    const t0 = battle.teams[0];
-                    const t1 = battle.teams[1];
+                    // Encontrar qué equipo es el dueño del live
+                    const owner = (battle.ownerUsername || "").toLowerCase().replace(/^@/,"");
+                    const isNumeric = s => /^\d{8,}$/.test(s||"");
+                    const getName = t => {
+                      const nn = t.hostNickname||""; const hn = t.hostName||"";
+                      if (!isNumeric(nn)) return nn;
+                      if (!isNumeric(hn)) return hn;
+                      return nn || hn;
+                    };
+
+                    // Siempre: dueño del live = izquierda (rojo), contrario = derecha (cyan)
+                    const ownerTeamIdx = battle.teams.findIndex(t => {
+                      const hn = (t.hostName||"").toLowerCase().replace(/^@/,"");
+                      const nn = (t.hostNickname||"").toLowerCase().replace(/^@/,"");
+                      return owner && (hn===owner || nn===owner || hn.includes(owner) || owner.includes(hn));
+                    });
+                    // Si no encontramos por nombre, usar índice 0 por defecto
+                    const idx0 = ownerTeamIdx >= 0 ? ownerTeamIdx : 0;
+                    const idx1 = idx0 === 0 ? 1 : 0;
+                    const t0 = battle.teams[idx0]; // dueño — siempre izquierda ROJO
+                    const t1 = battle.teams[idx1]; // contrario — siempre derecha CYAN
+
                     const total = (t0.points + t1.points) || 1;
                     const pct0 = Math.round(t0.points / total * 100);
                     const pct1 = 100 - pct0;
                     const win0 = t0.points >= t1.points;
-                    const win1 = t1.points > t0.points;
-                    // Nombre display: preferir nickname si es diferente al hostName numérico
-                    const isNumeric = s => /^\d{10,}$/.test(s||"");
-                    const name0 = isNumeric(t0.hostNickname) ? (t0.hostName||t0.hostNickname) : (t0.hostNickname||t0.hostName);
-                    const name1 = isNumeric(t1.hostNickname) ? (t1.hostName||t1.hostNickname) : (t1.hostNickname||t1.hostName);
+                    const win1 = !win0;
+                    const name0 = getName(t0);
+                    const name1 = getName(t1);
+
                     return (
                       <div style={{display:"flex",flexDirection:"column",gap:10}}>
 
@@ -1431,140 +1450,95 @@ function App() {
                         <div style={{background:"#12121e",border:"1px solid #1e1e2e",
                           borderRadius:16,padding:16}}>
 
-                          {/* Fila de nombres — FIJOS, no se mueven */}
-                          <div style={{display:"flex",alignItems:"flex-start",gap:6,marginBottom:12}}>
-                            {/* Nombre izquierda — siempre izquierda */}
+                          {/* Nombres — FIJOS, nunca cambian de lado */}
+                          <div style={{display:"flex",alignItems:"flex-start",gap:6,marginBottom:10}}>
                             <div style={{flex:1,textAlign:"left",minWidth:0}}>
-                              {win0 && <div style={{fontSize:12,marginBottom:1}}>👑</div>}
-                              <div style={{fontSize:11,fontWeight:800,color:"#fe2c55",
-                                overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
-                                wordBreak:"break-all"}}>
+                              {win0 && <span style={{fontSize:11}}>👑 </span>}
+                              <span style={{fontSize:11,fontWeight:800,color:"#fe2c55",
+                                wordBreak:"break-all",lineHeight:1.3}}>
                                 @{name0}
-                              </div>
+                              </span>
                             </div>
-                            {/* VS central fijo */}
-                            <div style={{flexShrink:0,padding:"0 6px",marginTop:2}}>
-                              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,
-                                fontSize:14,color:"#333",letterSpacing:2}}>VS</div>
+                            <div style={{flexShrink:0,padding:"0 5px",paddingTop:1}}>
+                              <span style={{fontFamily:"'Syne',sans-serif",fontWeight:900,
+                                fontSize:13,color:"#333",letterSpacing:2}}>VS</span>
                             </div>
-                            {/* Nombre derecha — siempre derecha */}
                             <div style={{flex:1,textAlign:"right",minWidth:0}}>
-                              {win1 && <div style={{fontSize:12,marginBottom:1,textAlign:"right"}}>👑</div>}
-                              <div style={{fontSize:11,fontWeight:800,color:"#25f4ee",
-                                overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
-                                wordBreak:"break-all"}}>
+                              {win1 && <span style={{fontSize:11}}>👑 </span>}
+                              <span style={{fontSize:11,fontWeight:800,color:"#25f4ee",
+                                wordBreak:"break-all",lineHeight:1.3}}>
                                 @{name1}
-                              </div>
+                              </span>
                             </div>
                           </div>
 
-                          {/* Fila de puntajes — FIJOS en su lado */}
-                          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:12}}>
-                            <div style={{flex:1,textAlign:"left"}}>
+                          {/* Puntajes — FIJOS en su lado, solo el número cambia */}
+                          <div style={{display:"flex",alignItems:"center",
+                            justifyContent:"space-between",marginBottom:10}}>
+                            <div style={{textAlign:"left"}}>
                               <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,
-                                fontSize:38,color:"#fe2c55",lineHeight:1}}>
+                                fontSize:40,color:"#fe2c55",lineHeight:1}}>
                                 {t0.points.toLocaleString()}
                               </div>
-                              <div style={{fontSize:9,color:"#fe2c5580",fontWeight:600,marginTop:2}}>
+                              <div style={{fontSize:10,color:"#fe2c5570",fontWeight:700}}>
                                 {pct0}%
                               </div>
                             </div>
-                            <div style={{flex:1,textAlign:"right"}}>
+                            <div style={{textAlign:"right"}}>
                               <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,
-                                fontSize:38,color:"#25f4ee",lineHeight:1}}>
+                                fontSize:40,color:"#25f4ee",lineHeight:1}}>
                                 {t1.points.toLocaleString()}
                               </div>
-                              <div style={{fontSize:9,color:"#25f4ee80",fontWeight:600,marginTop:2}}>
+                              <div style={{fontSize:10,color:"#25f4ee70",fontWeight:700}}>
                                 {pct1}%
                               </div>
                             </div>
                           </div>
 
-                          {/* Barra comparativa — SOLO ESTO se mueve */}
+                          {/* Barra — SOLO ESTO se anima con transition */}
                           <div style={{height:12,borderRadius:6,background:"#0d0d18",
                             overflow:"hidden",display:"flex"}}>
-                            <div style={{height:"100%",
-                              width:`${pct0}%`,
+                            <div style={{height:"100%",width:`${pct0}%`,
                               background:"linear-gradient(90deg,#fe2c55,#ff6b81)",
                               transition:"width 1s ease"}}/>
-                            <div style={{height:"100%",
-                              width:`${pct1}%`,
+                            <div style={{height:"100%",width:`${pct1}%`,
                               background:"linear-gradient(90deg,#0ea5e9,#25f4ee)",
                               transition:"width 1s ease"}}/>
                           </div>
                         </div>
 
-                        {/* ── Cards individuales ── */}
-                        {[t0, t1].map((team, i) => {
-                          const c = i === 0 ? "#fe2c55" : "#25f4ee";
-                          const pct = i === 0 ? pct0 : pct1;
-                          const isWin = i === 0 ? win0 : win1;
-                          const nm = i === 0 ? name0 : name1;
-                          return (
-                            <div key={i} style={{background:"#12121e",
-                              border:`1px solid ${isWin?"rgba(255,215,0,.25)":"#1e1e2e"}`,
-                              borderRadius:13,padding:13}}>
-                              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                                {isWin && <span style={{fontSize:16}}>👑</span>}
-                                <div style={{flex:1,minWidth:0}}>
-                                  <div style={{fontWeight:800,fontSize:12,color:c,
-                                    overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                                    @{nm}
-                                  </div>
-                                  {team.hostName && !isNumeric(team.hostName) && team.hostName !== (i===0?name0:name1) && (
-                                    <div style={{fontSize:8,color:"#555",fontFamily:"'JetBrains Mono',monospace",
-                                      overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                                      @{team.hostName}
-                                    </div>
-                                  )}
-                                </div>
-                                <div style={{textAlign:"right",flexShrink:0}}>
-                                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,
-                                    fontSize:28,color:c,lineHeight:1}}>
-                                    {team.points.toLocaleString()}
-                                  </div>
-                                  <div style={{fontSize:9,color:"#555",fontWeight:600}}>puntos</div>
+                        {/* Cards individuales — también fijos */}
+                        {[{team:t0,c:"#fe2c55",pct:pct0,isWin:win0,nm:name0},
+                          {team:t1,c:"#25f4ee",pct:pct1,isWin:win1,nm:name1}].map(({team,c,pct,isWin,nm},i) => (
+                          <div key={i} style={{background:"#12121e",
+                            border:`1px solid ${isWin?"rgba(255,215,0,.25)":"#1e1e2e"}`,
+                            borderRadius:13,padding:13}}>
+                            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                              {isWin && <span style={{fontSize:16}}>👑</span>}
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{fontWeight:800,fontSize:12,color:c,
+                                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                                  @{nm}
                                 </div>
                               </div>
-                              <div style={{height:5,background:"#0d0d18",borderRadius:3,overflow:"hidden"}}>
-                                <div style={{height:"100%",width:`${pct}%`,borderRadius:3,
-                                  transition:"width 1s ease",
-                                  background:`linear-gradient(90deg,${c},${c}55)`}}/>
-                              </div>
-                              <div style={{fontSize:9,color:"#444",marginTop:3,textAlign:"right"}}>
-                                {pct}% del total
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                        {/* Si hay más de 2 equipos */}
-                        {battle.teams.length > 2 && battle.teams.slice(2).map((team, i) => {
-                          const colors=["#ffd700","#a78bfa","#fb923c","#34d399"];
-                          const c=colors[i%colors.length];
-                          const total2=battle.teams.reduce((s,t)=>s+t.points,0)||1;
-                          const pct2=Math.round(team.points/total2*100);
-                          const nm2=isNumeric(team.hostNickname)?(team.hostName||team.hostNickname):(team.hostNickname||team.hostName);
-                          return (
-                            <div key={i+2} style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:13,padding:13}}>
-                              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                                <div style={{flex:1,minWidth:0}}>
-                                  <div style={{fontWeight:800,fontSize:12,color:c,
-                                    overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                                    @{nm2}
-                                  </div>
-                                </div>
-                                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:22,color:c}}>
+                              <div style={{textAlign:"right",flexShrink:0}}>
+                                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,
+                                  fontSize:28,color:c,lineHeight:1}}>
                                   {team.points.toLocaleString()}
                                 </div>
-                              </div>
-                              <div style={{height:4,background:"#0d0d18",borderRadius:3,overflow:"hidden"}}>
-                                <div style={{height:"100%",width:`${pct2}%`,borderRadius:3,
-                                  background:`linear-gradient(90deg,${c},${c}55)`,transition:"width 1s"}}/>
+                                <div style={{fontSize:9,color:"#555",fontWeight:600}}>puntos</div>
                               </div>
                             </div>
-                          );
-                        })}
+                            <div style={{height:5,background:"#0d0d18",borderRadius:3,overflow:"hidden"}}>
+                              <div style={{height:"100%",width:`${pct}%`,borderRadius:3,
+                                transition:"width 1s ease",
+                                background:`linear-gradient(90deg,${c},${c}55)`}}/>
+                            </div>
+                            <div style={{fontSize:9,color:"#444",marginTop:3,textAlign:"right"}}>
+                              {pct}% del total
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     );
                   })() : battle.teams && battle.teams.length === 1 ? (

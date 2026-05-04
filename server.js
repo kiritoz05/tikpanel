@@ -136,7 +136,9 @@ async function startTikTokConnection(username) {
   });
 
   await tiktok.connect();
-  sessions[username] = { tiktok, retryTimer: null };
+  // Guardar username del dueño del live para identificarlo en batalla
+  const ownerUsername = username.replace(/^@/, "").toLowerCase();
+  sessions[username] = { tiktok, retryTimer: null, ownerUsername };
   console.log(`✅ Conectado a @${username}`);
 
   tiktok.on("chat", (data) => {
@@ -243,7 +245,7 @@ async function startTikTokConnection(username) {
     io.emit("battle", {
       status: data.battleStatus || 1,
       teams,
-      _raw: JSON.stringify(data).slice(0, 600), // para debug en cliente
+      ownerUsername,   // username del dueño del live — siempre va a la izquierda
       timestamp: Date.now(),
     });
   });
@@ -267,7 +269,7 @@ async function startTikTokConnection(username) {
     io.emit("battle", {
       status: 1,
       teams,
-      _raw: JSON.stringify(data).slice(0, 600),
+      ownerUsername,   // username del dueño del live — siempre va a la izquierda
       timestamp: Date.now(),
     });
   });
