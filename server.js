@@ -51,12 +51,13 @@ function extractTeams(data) {
       let hostName     = hostUserId || "?";
       let hostNickname = hostName;
 
-      // Buscar al host en participants usando su userId
+      // Buscar al host en participants usando su userId (comparar como strings)
       if (Array.isArray(army.participants) && army.participants.length > 0) {
-        // Intentar encontrar el participante cuyo userId == hostUserId
         const hostParticipant = army.participants.find(p =>
-          String(p.userId) === hostUserId || String(p.uniqueId) === hostUserId
-        ) || army.participants[0]; // fallback al primero
+          String(p.userId)   === String(hostUserId) ||
+          String(p.uniqueId) === String(hostUserId) ||
+          String(p.id)       === String(hostUserId)
+        ) || null; // NO fallback al primero (ese sería un MVP, no el host)
 
         if (hostParticipant) {
           hostNickname = hostParticipant.nickname || hostParticipant.displayName || hostParticipant.name || hostName;
@@ -64,6 +65,11 @@ function extractTeams(data) {
           if (hostParticipant.uniqueId && hostParticipant.uniqueId.length > 0) {
             hostName = hostParticipant.uniqueId;
           }
+        } else {
+          // Si no encontramos el host en participants, usar hostUserId como nombre
+          // (TikTok no siempre incluye al host en su propio array de participants)
+          hostName = hostUserId || "?";
+          hostNickname = hostName;
         }
       } else if (army.hostUser) {
         hostName     = army.hostUser.uniqueId || army.hostUser.userId || hostName;
