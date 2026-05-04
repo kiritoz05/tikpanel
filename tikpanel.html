@@ -477,6 +477,40 @@ function App() {
   const [tUser,  setTUser]  = useState(() => ld("tuser", ""));
   const [conn,   setConn]   = useState(false);
   const [conn2,  setConn2]  = useState(false);
+  const wakeLockRef = React.useRef(null);
+  const [wakeLockOn, setWakeLockOn] = React.useState(false);
+
+  // ── Wake Lock: mantener pantalla encendida ──────────────────────────────
+  const requestWakeLock = React.useCallback(async () => {
+    if (!('wakeLock' in navigator)) return; // no soportado
+    try {
+      if (wakeLockRef.current) return; // ya activo
+      wakeLockRef.current = await navigator.wakeLock.request('screen');
+      setWakeLockOn(true);
+      console.log('🔆 Wake Lock activo — pantalla no se apagará');
+      wakeLockRef.current.addEventListener('release', () => {
+        wakeLockRef.current = null;
+        setWakeLockOn(false);
+        console.log('Wake Lock liberado');
+      });
+    } catch(e) { console.warn('Wake Lock error:', e.message); }
+  }, []);
+
+  const releaseWakeLock = React.useCallback(async () => {
+    if (wakeLockRef.current) {
+      await wakeLockRef.current.release();
+      wakeLockRef.current = null;
+      setWakeLockOn(false);
+    }
+  }, []);
+
+  // Activar Wake Lock cuando la página vuelve a ser visible (ej: cambiar app y volver)
+  React.useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') requestWakeLock(); };
+    document.addEventListener('visibilitychange', onVisible);
+    requestWakeLock(); // activar al cargar
+    return () => { document.removeEventListener('visibilitychange', onVisible); releaseWakeLock(); };
+  }, [requestWakeLock, releaseWakeLock]);
   const [dots,   setDots]   = useState("");
   const [connErr,setConnErr]= useState("");
 
@@ -966,11 +1000,23 @@ function App() {
             </div>
           </div>
           {conn && (
-            <div style={{display:"flex",alignItems:"center",gap:4,
-              background:"rgba(254,44,85,.1)",border:"1px solid rgba(254,44,85,.2)",
-              borderRadius:20,padding:"3px 9px",color:"#fe2c55",fontWeight:800,fontSize:8,letterSpacing:1}}>
-              <div className="ld" style={{width:4,height:4,borderRadius:"50%",
-                background:"#fe2c55",boxShadow:"0 0 6px #fe2c55"}}/>EN VIVO
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              {/* ☀️ Wake Lock indicator */}
+              <span
+                onClick={wakeLockOn ? releaseWakeLock : requestWakeLock}
+                title={wakeLockOn?"Pantalla activa (toca para desactivar)":"Toca para mantener pantalla encendida"}
+                style={{fontSize:13,cursor:"pointer",lineHeight:1,
+                  opacity:wakeLockOn?1:0.3,
+                  filter:wakeLockOn?"drop-shadow(0 0 5px #ffd700)":"none",
+                  transition:"all .4s",userSelect:"none"}}>
+                ☀️
+              </span>
+              <div style={{display:"flex",alignItems:"center",gap:4,
+                background:"rgba(254,44,85,.1)",border:"1px solid rgba(254,44,85,.2)",
+                borderRadius:20,padding:"3px 9px",color:"#fe2c55",fontWeight:800,fontSize:8,letterSpacing:1}}>
+                <div className="ld" style={{width:4,height:4,borderRadius:"50%",
+                  background:"#fe2c55",boxShadow:"0 0 6px #fe2c55"}}/>EN VIVO
+              </div>
             </div>
           )}
         </div>
