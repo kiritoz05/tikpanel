@@ -18,6 +18,22 @@ app.use(express.json());
 
 const sessions = {};
 
+// Mapa global userId -> {uniqueId, nickname} para resolver IDs numericos en batalla
+const userMap = {};
+function registerUser(data) {
+  if (!data) return;
+  const uid = String(data.userId || data.id || "");
+  const uniqueId = data.uniqueId || data.displayId || "";
+  const nickname = data.nickname || data.displayName || data.name || "";
+  if (uid && (uniqueId || nickname)) {
+    userMap[uid] = { uniqueId: uniqueId || userMap[uid]?.uniqueId || "", nickname: nickname || userMap[uid]?.nickname || "" };
+  }
+  // También indexar por uniqueId por si acaso
+  if (uniqueId) {
+    userMap[uniqueId] = userMap[uid] || { uniqueId, nickname };
+  }
+}
+
 function cleanSession(username) {
   if (sessions[username]) {
     clearTimeout(sessions[username].retryTimer);
@@ -66,10 +82,16 @@ function extractTeams(data) {
             hostName = hostParticipant.uniqueId;
           }
         } else {
-          // Si no encontramos el host en participants, usar hostUserId como nombre
-          // (TikTok no siempre incluye al host en su propio array de participants)
-          hostName = hostUserId || "?";
-          hostNickname = hostName;
+          // El host no está en participants — buscar en userMap global
+          const mapped = userMap[hostUserId] || userMap[String(hostUserId)];
+          if (mapped && (mapped.uniqueId || mapped.nickname)) {
+            hostName     = mapped.uniqueId || hostUserId;
+            hostNickname = mapped.nickname || mapped.uniqueId || hostUserId;
+          } else {
+            // Último recurso: mostrar el ID numérico (se resolverá cuando llegue más data)
+            hostName = hostUserId || "?";
+            hostNickname = hostName;
+          }
         }
       } else if (army.hostUser) {
         hostName     = army.hostUser.uniqueId || army.hostUser.userId || hostName;
@@ -118,6 +140,7 @@ async function startTikTokConnection(username) {
   console.log(`✅ Conectado a @${username}`);
 
   tiktok.on("chat", (data) => {
+    registerUser(data);
     io.emit("event", {
       type: "chat",
       user: data.uniqueId,
@@ -128,6 +151,7 @@ async function startTikTokConnection(username) {
   });
 
   tiktok.on("gift", (data) => {
+    registerUser(data);
     if (data.giftType === 1 && !data.repeatEnd) return;
     io.emit("event", {
       type: "gift",
@@ -142,6 +166,7 @@ async function startTikTokConnection(username) {
   });
 
   tiktok.on("follow", (data) => {
+    registerUser(data);
     io.emit("event", {
       type: "follow",
       user: data.uniqueId,
@@ -151,6 +176,7 @@ async function startTikTokConnection(username) {
   });
 
   tiktok.on("like", (data) => {
+    registerUser(data);
     io.emit("event", {
       type: "like",
       user: data.uniqueId,
@@ -179,6 +205,10 @@ async function startTikTokConnection(username) {
   });
 
   tiktok.on("roomUser", (data) => {
+    // Registrar todos los usuarios del roomUser para resolver IDs de batalla
+    if (Array.isArray(data.topViewers)) {
+      data.topViewers.forEach(v => registerUser(v.user || v));
+    }
     io.emit("viewers", {
       count: data.viewerCount || 0,
       // topViewers viene como array de usuarios activos en algunas versiones del conector
@@ -192,6 +222,7 @@ async function startTikTokConnection(username) {
 
   // ── ESPECTADORES: alguien entra al live ────────────────────────────────
   tiktok.on("member", (data) => {
+    registerUser(data);
     io.emit("member", {
       user: data.uniqueId,
       nickname: data.nickname || data.uniqueId,
@@ -201,6 +232,8 @@ async function startTikTokConnection(username) {
 
   // ── BATALLA: linkMicBattle ─────────────────────────────────────────────
   tiktok.on("linkMicBattle", (data) => {
+    // Registrar usuarios de la batalla
+    if (Array.isArray(data.battleUsers)) data.battleUsers.forEach(u => registerUser(u));
     console.log("[linkMicBattle] raw keys:", Object.keys(data));
     console.log("[linkMicBattle] raw:", JSON.stringify(data).slice(0, 800));
 
@@ -217,6 +250,13 @@ async function startTikTokConnection(username) {
 
   // ── BATALLA: linkMicArmies (tick por segundo con puntos) ───────────────
   tiktok.on("linkMicArmies", (data) => {
+    // Registrar todos los participantes de cada army para resolver IDs
+    if (Array.isArray(data.battleArmies)) {
+      data.battleArmies.forEach(army => {
+        if (Array.isArray(army.participants)) army.participants.forEach(p => registerUser(p));
+        if (army.hostUser) registerUser(army.hostUser);
+      });
+    }
     console.log("[linkMicArmies] raw keys:", Object.keys(data));
     console.log("[linkMicArmies] raw:", JSON.stringify(data).slice(0, 800));
 

@@ -1420,104 +1420,98 @@ function App() {
                     const pct1 = 100 - pct0;
                     const win0 = t0.points >= t1.points;
                     const win1 = t1.points > t0.points;
+                    // Nombre display: preferir nickname si es diferente al hostName numérico
+                    const isNumeric = s => /^\d{10,}$/.test(s||"");
+                    const name0 = isNumeric(t0.hostNickname) ? (t0.hostName||t0.hostNickname) : (t0.hostNickname||t0.hostName);
+                    const name1 = isNumeric(t1.hostNickname) ? (t1.hostName||t1.hostNickname) : (t1.hostNickname||t1.hostName);
                     return (
                       <div style={{display:"flex",flexDirection:"column",gap:10}}>
 
-                        {/* ── VERSUS PRINCIPAL: las dos anfitrionas ── */}
+                        {/* ── VERSUS PRINCIPAL ── */}
                         <div style={{background:"#12121e",border:"1px solid #1e1e2e",
-                          borderRadius:16,padding:16,position:"relative",overflow:"hidden"}}>
+                          borderRadius:16,padding:16}}>
 
-                          {/* Separador central decorativo */}
-                          <div style={{position:"absolute",top:"50%",left:"50%",
-                            transform:"translate(-50%,-50%)",width:1,height:"70%",
-                            background:"linear-gradient(180deg,transparent,#252535,transparent)",
-                            pointerEvents:"none"}}/>
-
-                          {/* Nombres y puntajes de los dos hosts */}
-                          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:14}}>
-
-                            {/* Anfitriona izquierda (equipo 0) */}
-                            <div style={{flex:1,textAlign:"left"}}>
-                              {win0 && <div style={{fontSize:14,marginBottom:2}}>👑</div>}
+                          {/* Fila de nombres — FIJOS, no se mueven */}
+                          <div style={{display:"flex",alignItems:"flex-start",gap:6,marginBottom:12}}>
+                            {/* Nombre izquierda — siempre izquierda */}
+                            <div style={{flex:1,textAlign:"left",minWidth:0}}>
+                              {win0 && <div style={{fontSize:12,marginBottom:1}}>👑</div>}
                               <div style={{fontSize:11,fontWeight:800,color:"#fe2c55",
-                                overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                                @{t0.hostNickname || t0.hostName}
-                              </div>
-                              {t0.hostName && t0.hostName !== t0.hostNickname && (
-                                <div style={{fontSize:8,color:"#555",fontFamily:"'JetBrains Mono',monospace",
-                                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                                  @{t0.hostName}
-                                </div>
-                              )}
-                              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,
-                                fontSize:36,color:"#fe2c55",lineHeight:1,marginTop:4}}>
-                                {t0.points.toLocaleString()}
-                              </div>
-                              <div style={{fontSize:9,color:"#fe2c5599",fontWeight:600,marginTop:2}}>
-                                {pct0}% del total
+                                overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
+                                wordBreak:"break-all"}}>
+                                @{name0}
                               </div>
                             </div>
-
-                            {/* VS central */}
-                            <div style={{flexShrink:0,textAlign:"center",padding:"0 4px"}}>
+                            {/* VS central fijo */}
+                            <div style={{flexShrink:0,padding:"0 6px",marginTop:2}}>
                               <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,
-                                fontSize:18,color:"#444",letterSpacing:2}}>VS</div>
+                                fontSize:14,color:"#333",letterSpacing:2}}>VS</div>
                             </div>
-
-                            {/* Anfitriona derecha (equipo 1) */}
-                            <div style={{flex:1,textAlign:"right"}}>
-                              {win1 && <div style={{fontSize:14,marginBottom:2,textAlign:"right"}}>👑</div>}
+                            {/* Nombre derecha — siempre derecha */}
+                            <div style={{flex:1,textAlign:"right",minWidth:0}}>
+                              {win1 && <div style={{fontSize:12,marginBottom:1,textAlign:"right"}}>👑</div>}
                               <div style={{fontSize:11,fontWeight:800,color:"#25f4ee",
-                                overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                                @{t1.hostNickname || t1.hostName}
-                              </div>
-                              {t1.hostName && t1.hostName !== t1.hostNickname && (
-                                <div style={{fontSize:8,color:"#555",fontFamily:"'JetBrains Mono',monospace",
-                                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                                  @{t1.hostName}
-                                </div>
-                              )}
-                              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,
-                                fontSize:36,color:"#25f4ee",lineHeight:1,marginTop:4}}>
-                                {t1.points.toLocaleString()}
-                              </div>
-                              <div style={{fontSize:9,color:"#25f4ee99",fontWeight:600,marginTop:2}}>
-                                {pct1}% del total
+                                overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
+                                wordBreak:"break-all"}}>
+                                @{name1}
                               </div>
                             </div>
                           </div>
 
-                          {/* Barra comparativa */}
+                          {/* Fila de puntajes — FIJOS en su lado */}
+                          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:12}}>
+                            <div style={{flex:1,textAlign:"left"}}>
+                              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,
+                                fontSize:38,color:"#fe2c55",lineHeight:1}}>
+                                {t0.points.toLocaleString()}
+                              </div>
+                              <div style={{fontSize:9,color:"#fe2c5580",fontWeight:600,marginTop:2}}>
+                                {pct0}%
+                              </div>
+                            </div>
+                            <div style={{flex:1,textAlign:"right"}}>
+                              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,
+                                fontSize:38,color:"#25f4ee",lineHeight:1}}>
+                                {t1.points.toLocaleString()}
+                              </div>
+                              <div style={{fontSize:9,color:"#25f4ee80",fontWeight:600,marginTop:2}}>
+                                {pct1}%
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Barra comparativa — SOLO ESTO se mueve */}
                           <div style={{height:12,borderRadius:6,background:"#0d0d18",
                             overflow:"hidden",display:"flex"}}>
                             <div style={{height:"100%",
                               width:`${pct0}%`,
                               background:"linear-gradient(90deg,#fe2c55,#ff6b81)",
-                              transition:"width 1s ease",borderRadius:"6px 0 0 6px"}}/>
+                              transition:"width 1s ease"}}/>
                             <div style={{height:"100%",
                               width:`${pct1}%`,
                               background:"linear-gradient(90deg,#0ea5e9,#25f4ee)",
-                              transition:"width 1s ease",borderRadius:"0 6px 6px 0"}}/>
+                              transition:"width 1s ease"}}/>
                           </div>
                         </div>
 
-                        {/* ── Cards de detalle de cada anfitriona ── */}
+                        {/* ── Cards individuales ── */}
                         {[t0, t1].map((team, i) => {
                           const c = i === 0 ? "#fe2c55" : "#25f4ee";
                           const pct = i === 0 ? pct0 : pct1;
-                          const isWinner = i === 0 ? win0 : win1;
+                          const isWin = i === 0 ? win0 : win1;
+                          const nm = i === 0 ? name0 : name1;
                           return (
                             <div key={i} style={{background:"#12121e",
-                              border:`1px solid ${isWinner?"rgba(255,215,0,.25)":"#1e1e2e"}`,
+                              border:`1px solid ${isWin?"rgba(255,215,0,.25)":"#1e1e2e"}`,
                               borderRadius:13,padding:13}}>
                               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                                {isWinner && <span style={{fontSize:16}}>👑</span>}
+                                {isWin && <span style={{fontSize:16}}>👑</span>}
                                 <div style={{flex:1,minWidth:0}}>
-                                  <div style={{fontWeight:800,fontSize:13,color:c,
+                                  <div style={{fontWeight:800,fontSize:12,color:c,
                                     overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                                    @{team.hostNickname || team.hostName}
+                                    @{nm}
                                   </div>
-                                  {team.hostName && team.hostName !== team.hostNickname && (
+                                  {team.hostName && !isNumeric(team.hostName) && team.hostName !== (i===0?name0:name1) && (
                                     <div style={{fontSize:8,color:"#555",fontFamily:"'JetBrains Mono',monospace",
                                       overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                                       @{team.hostName}
@@ -1535,7 +1529,7 @@ function App() {
                               <div style={{height:5,background:"#0d0d18",borderRadius:3,overflow:"hidden"}}>
                                 <div style={{height:"100%",width:`${pct}%`,borderRadius:3,
                                   transition:"width 1s ease",
-                                  background:`linear-gradient(90deg,${c},${c}66)`}}/>
+                                  background:`linear-gradient(90deg,${c},${c}55)`}}/>
                               </div>
                               <div style={{fontSize:9,color:"#444",marginTop:3,textAlign:"right"}}>
                                 {pct}% del total
@@ -1550,13 +1544,14 @@ function App() {
                           const c=colors[i%colors.length];
                           const total2=battle.teams.reduce((s,t)=>s+t.points,0)||1;
                           const pct2=Math.round(team.points/total2*100);
+                          const nm2=isNumeric(team.hostNickname)?(team.hostName||team.hostNickname):(team.hostNickname||team.hostName);
                           return (
                             <div key={i+2} style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:13,padding:13}}>
                               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                                 <div style={{flex:1,minWidth:0}}>
-                                  <div style={{fontWeight:800,fontSize:13,color:c,
+                                  <div style={{fontWeight:800,fontSize:12,color:c,
                                     overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                                    @{team.hostNickname||team.hostName}
+                                    @{nm2}
                                   </div>
                                 </div>
                                 <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:22,color:c}}>
@@ -1565,7 +1560,7 @@ function App() {
                               </div>
                               <div style={{height:4,background:"#0d0d18",borderRadius:3,overflow:"hidden"}}>
                                 <div style={{height:"100%",width:`${pct2}%`,borderRadius:3,
-                                  background:`linear-gradient(90deg,${c},${c}66)`,transition:"width 1s"}}/>
+                                  background:`linear-gradient(90deg,${c},${c}55)`,transition:"width 1s"}}/>
                               </div>
                             </div>
                           );
@@ -1588,7 +1583,7 @@ function App() {
                     </div>
                   )}
 
-                  {/* Última actualización */}
+                                    {/* Última actualización */}
                   {battle.timestamp && (
                     <div style={{textAlign:"center",color:"#333",fontSize:9,marginTop:12}}>
                       Actualizado: {new Date(battle.timestamp).toLocaleTimeString()}
