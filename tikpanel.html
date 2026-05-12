@@ -107,7 +107,7 @@ function filterText(text, blocked) {
   let t = stripEmojis(text);
   for (const w of (blocked||[])) {
     if (!w) continue;
-    try { t = t.replace(new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\b','gi'),'***'); } catch(e){}
+    try { t = t.replace(new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\b','gi'),''); } catch(e){}
   }
   return t.trim();
 }
@@ -1093,7 +1093,6 @@ function App() {
     {id:"dashboard", icon:"⚡", l:"Dashboard"},
     {id:"acciones",  icon:"🎬", l:"Acciones"},
     {id:"tts",       icon:"🔊", l:"Voz & Audio"},
-    {id:"filtros",   icon:"🎛️", l:"Filtros"},
     {id:"ranking",   icon:"🏆", l:"Ranking"},
     {id:"chat",      icon:"💬", l:"Chat"},
     {id:"batalla",   icon:"⚔️",  l:"Batalla"},
@@ -1758,28 +1757,15 @@ function App() {
                     <span style={{color:"#333",fontSize:10}}>Sin filtros — leyendo todo el chat</span>
                   )}
                 </div>
-                <div style={{marginTop:10,fontSize:9,color:"#333"}}>
-                  Ajusta filtros en la pestaña <span style={{color:"#fe2c55",fontWeight:600}}>🎛️ Filtros</span>
-                </div>
               </div>
-            </div>
-          )}
 
-
-          {/* ── FILTROS DE USUARIOS ── */}
-          {tab==="filtros" && (
-            <div className="ai">
-              {/* Filtros de lectura */}
+              {/* ── Filtros de Usuarios (integrado en Voz & Audio) ── */}
               <div style={C}>
                 <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:12,marginBottom:4}}>
                   🎛️ Filtros de Usuarios
                 </div>
                 <div style={{color:"#444",fontSize:10,marginBottom:14}}>
                   Define quién es leído por el bot TTS en el chat
-                </div>
-                <div style={{background:"rgba(37,244,238,.05)",border:"1px solid rgba(37,244,238,.1)",borderRadius:8,
-                  padding:"8px 12px",marginBottom:14,fontSize:10,color:"#25f4ee"}}>
-                  💡 Para leer a <strong>todos</strong>, usa el botón en la pestaña 🔊 Voz &amp; Audio
                 </div>
 
                 {/* Seguidores */}
@@ -1875,16 +1861,15 @@ function App() {
                 )}
               </div>
 
-              {/* Palabras bloqueadas — ahora en Voz & Audio */}
+              {/* Palabras bloqueadas — se gestionan en la sección de arriba */}
               <div style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:14,padding:14}}>
                 <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:12,marginBottom:8}}>
-                  🚫 Bloquear palabras
+                  🚫 Palabras bloqueadas activas
                 </div>
-                <div style={{color:"#555",fontSize:10,marginBottom:10}}>
-                  Configura palabras bloqueadas en la pestaña{" "}
-                  <span style={{color:"#fe2c55",fontWeight:700}}>🔊 Voz &amp; Audio</span>
-                </div>
-                {blockedWords.length>0 && (
+                {blockedWords.length===0 ? (
+                  <div style={{color:"#333",fontSize:10,padding:"8px 12px",background:"#0a0a0f",
+                    border:"1px solid #1e1e2e",borderRadius:8}}>Sin palabras bloqueadas</div>
+                ) : (
                   <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                     {blockedWords.map(w=>(
                       <span key={w} style={{background:"rgba(254,44,85,.1)",border:"1px solid rgba(254,44,85,.25)",
@@ -2213,7 +2198,7 @@ function App() {
               <div style={{display:"flex",gap:6,marginBottom:10}}>
                 {[
                   {id:"historial", label:`📋 Entradas al live (${viewR.length})`},
-                  {id:"activos",   label:`👁 Top activos (${topViewers.length})`},
+                  {id:"activos",   label:`👁 Top activos (${stats.viewers})`},
                 ].map(t => (
                   <button key={t.id} onClick={()=>setVTab(t.id)}
                     style={{flex:1,background:vTab===t.id?"rgba(37,244,238,.1)":"transparent",
