@@ -128,6 +128,8 @@ async function drainQueue() {
       await speakElevenLabs(item.text, item.voiceId, item.vol);
     } else if (item.mode === "google") {
       await speakGoogle(item.text, item.voiceId, item.vol);
+    } else if (item.mode === "ttsmaker") {
+      await speakTTSMaker(item.text, item.voiceId, item.vol);
     } else {
       await speakNative(item.text, item.voiceId, item.vol);
     }
@@ -168,19 +170,64 @@ function speakNative(text, voiceId, vol) {
   return new Promise((res) => {
     if (!window.speechSynthesis) { res(); return; }
     window.speechSynthesis.cancel();
-    const utt   = new SpeechSynthesisUtterance(text);
-    utt.volume  = Math.min(1, Math.max(0, vol));
-    utt.rate    = nativeTTSConfig.rate;
-    utt.pitch   = nativeTTSConfig.pitch;
-    utt.lang    = "es-MX";
+    function doSpeak() {
+      const utt   = new SpeechSynthesisUtterance(text);
+      utt.volume  = Math.min(1, Math.max(0, vol));
+      utt.rate    = nativeTTSConfig.rate;
+      utt.pitch   = nativeTTSConfig.pitch;
+      utt.lang    = "es-MX";
+      const voices = window.speechSynthesis.getVoices();
+      if (voiceId) {
+        const byName = voices.find(v => v.name === voiceId);
+        if (byName) utt.voice = byName;
+      }
+      if (!utt.voice) {
+        const esVoice = voices.find(v => v.lang.startsWith("es"));
+        if (esVoice) utt.voice = esVoice;
+      }
+      utt.onend   = res;
+      utt.onerror = res;
+      window.speechSynthesis.speak(utt);
+      setTimeout(res, 15000);
+    }
     const voices = window.speechSynthesis.getVoices();
-    const match  = voices.find(v => v.name === voiceId || v.lang.startsWith("es"));
-    if (match) utt.voice = match;
-    utt.onend   = res;
-    utt.onerror = res;
-    window.speechSynthesis.speak(utt);
-    setTimeout(res, 15000);
+    if (voices.length > 0) {
+      doSpeak();
+    } else {
+      window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.onvoiceschanged = null; doSpeak(); };
+      setTimeout(doSpeak, 500); // fallback si onvoiceschanged no dispara
+    }
   });
+}
+
+async function speakTTSMaker(text, voiceId, vol) {
+  // TTSMaker API gratuita — no requiere clave para uso básico
+  const VOICE = voiceId || "en-US-1"; // voz por defecto
+  try {
+    const r = await fetch("https://api.ttsmaker.com/v1/create-tts-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token: "ttsmaker-demo-token",
+        text,
+        voice_id: VOICE,
+        audio_format: "mp3",
+        audio_speed: 1.0,
+        audio_volume: 1,
+        text_paragraph_pause_time: 0,
+      }),
+      signal: AbortSignal.timeout(12000),
+    });
+    const json = await r.json();
+    if (json?.status === "success" && json?.audio_file_url) {
+      await playAudio(json.audio_file_url, vol);
+      return;
+    }
+    throw new Error(json?.error_details || "TTSMaker sin audio_url");
+  } catch(e) {
+    console.warn("TTSMaker falló, usando nativo:", e.message);
+    await speakNative(text, null, vol);
+  }
 }
 
 function playAudio(src, vol) {
@@ -581,7 +628,7 @@ function App() {
   const [vTab, setVTab] = useState("historial"); // sub-tab espectadores
 
   // TTS settings
-  const [ttsMode,  setTtsMode]  = useState(() => ld("ttsMode", "native"));   // "native" | "elevenlabs"
+  const [ttsMode,  setTtsMode]  = useState(() => ld("ttsMode", "native"));   // "native" | "google" | "elevenlabs" | "ttsmaker"
   const [ttsOn,    setTtsOn]    = useState(() => ld("ttsOn", true));
   const [ttsVol,   setTtsVol]   = useState(() => ld("ttsVol", 80));
   const [ttsVoice, setTtsVoice] = useState(() => ld("ttsVoice", "cgSgspJ2msm6clMCkdW9")); // EL voice ID
@@ -591,6 +638,7 @@ function App() {
   const [nativePitch,  setNativePitch]  = useState(() => ld("nativePitch", 1));
   const [elVoices, setElVoices] = useState(DEF_VOICES_EL);
   const [googleVoice, setGoogleVoice] = useState(() => ld("googleVoice", "es-MX"));
+  const [ttsMakerVoice, setTtsMakerVoice] = useState(() => ld("ttsMakerVoice", "es-MX-1"));
   // Filtros de usuarios
   const [filterAll,      setFilterAll]      = useState(() => ld("filterAll",      false));
   const [filterFollow,   setFilterFollow]   = useState(() => ld("filterFollow",   true));
@@ -649,6 +697,7 @@ function App() {
   const ttsVoiceR = useRef(ttsVoice);
   const nativeVoiceR = useRef(nativeVoice);
   const googleVoiceR = useRef(googleVoice);
+  const ttsMakerVoiceR = useRef(ttsMakerVoice);
   const nativeRateR  = useRef(nativeRate);
   const nativePitchR = useRef(nativePitch);
   const actsR     = useRef([]);
@@ -674,6 +723,7 @@ function App() {
   useEffect(()=>{ ttsVoiceR.current=ttsVoice; sv("ttsVoice",ttsVoice);}, [ttsVoice]);
   useEffect(()=>{ nativeVoiceR.current=nativeVoice; sv("nativeVoice",nativeVoice);}, [nativeVoice]);
   useEffect(()=>{ googleVoiceR.current=googleVoice; sv("googleVoice",googleVoice);}, [googleVoice]);
+  useEffect(()=>{ ttsMakerVoiceR.current=ttsMakerVoice; sv("ttsMakerVoice",ttsMakerVoice);}, [ttsMakerVoice]);
   useEffect(()=>{ nativeRateR.current=nativeRate;   sv("nativeRate",  nativeRate);  nativeTTSConfig.rate=nativeRate; }, [nativeRate]);
   useEffect(()=>{ nativePitchR.current=nativePitch; sv("nativePitch", nativePitch); nativeTTSConfig.pitch=nativePitch; }, [nativePitch]);
   useEffect(()=>{ actsR.current=actions;   sv("actions4", actions);  }, [actions]);
@@ -817,13 +867,8 @@ function App() {
           const rawText = applyTpl(tpl, {username:d.user||"", nickname:d.nickname||d.user||"", message:d.comment||""});
           const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
           if (text) {
-            if (ttsModeR.current==="elevenlabs") {
-              enqueueTTS(text, ttsVoiceR.current, ttsVolR.current/100, "elevenlabs");
-            } else if (ttsModeR.current==="google") {
-              enqueueTTS(text, googleVoiceR.current, ttsVolR.current/100, "google");
-            } else {
-              enqueueTTS(text, nativeVoiceR.current, ttsVolR.current/100, "native");
-            }
+            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:ttsModeR.current==="ttsmaker"?ttsMakerVoiceR.current:nativeVoiceR.current;
+            enqueueTTS(text, vp, ttsVolR.current/100, ttsModeR.current);
           }
         }
       } else if (d.type==="gift") {
@@ -838,7 +883,7 @@ function App() {
           });
           const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
           if (text) {
-            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:nativeVoiceR.current;
+            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:ttsModeR.current==="ttsmaker"?ttsMakerVoiceR.current:nativeVoiceR.current;
             enqueueTTS(text, vp, ttsVolR.current/100, ttsModeR.current);
           }
         }
@@ -859,7 +904,7 @@ function App() {
           const rawText = applyTpl(tpl, {username:d.user||"", nickname:d.nickname||d.user||""});
           const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
           if (text) {
-            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:nativeVoiceR.current;
+            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:ttsModeR.current==="ttsmaker"?ttsMakerVoiceR.current:nativeVoiceR.current;
             enqueueTTS(text, vp, ttsVolR.current/100, ttsModeR.current);
           }
         }
@@ -890,7 +935,7 @@ function App() {
           const rawText = applyTpl(tpl, {username:d.user||"", nickname:d.nickname||d.user||""});
           const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
           if (text) {
-            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:nativeVoiceR.current;
+            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:ttsModeR.current==="ttsmaker"?ttsMakerVoiceR.current:nativeVoiceR.current;
             enqueueTTS(text, vp, ttsVolR.current/100, ttsModeR.current);
           }
         }
@@ -902,7 +947,7 @@ function App() {
           const rawText = applyTpl(tpl, {username:d.user||"", nickname:d.nickname||d.user||""});
           const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
           if (text) {
-            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:nativeVoiceR.current;
+            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:ttsModeR.current==="ttsmaker"?ttsMakerVoiceR.current:nativeVoiceR.current;
             enqueueTTS(text, vp, ttsVolR.current/100, ttsModeR.current);
           }
         }
@@ -924,7 +969,7 @@ function App() {
         const rawText = applyTpl(tpl, {username:d.user||"", nickname:d.nickname||d.user||""});
         const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
         if (text) {
-          const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:nativeVoiceR.current;
+          const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:ttsModeR.current==="ttsmaker"?ttsMakerVoiceR.current:nativeVoiceR.current;
           enqueueTTS(text, vp, ttsVolR.current/100, ttsModeR.current);
         }
       }
@@ -1439,15 +1484,23 @@ function App() {
                   <Toggle on={ttsOn} onChange={()=>setTtsOn(!ttsOn)}/>
                 </div>
 
-                {/* Ignorar emojis */}
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-                  background:"#0a0a0f",borderRadius:8,padding:"10px 12px",
-                  border:"1px solid #1e1e2e",marginBottom:14}}>
-                  <div>
-                    <div style={{fontSize:12,fontWeight:600}}>Ignorar emojis 😊🎉</div>
-                    <div style={{fontSize:9,color:"#555",marginTop:1}}>El bot no lee los emojis en voz alta</div>
+                {/* Botones Leer a todos / Solo filtrados */}
+                <div style={{marginBottom:14}}>
+                  <label style={lbl}>¿A quién lee el bot?</label>
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={()=>setFilterAll(true)}
+                      style={{flex:1,padding:"10px 6px",borderRadius:10,border:`2px solid ${filterAll?"#25f4ee":"#252535"}`,
+                        background:filterAll?"rgba(37,244,238,.12)":"#0a0a0f",
+                        color:filterAll?"#25f4ee":"#555",fontWeight:700,fontSize:11,cursor:"pointer",lineHeight:1.3}}>
+                      🌐 Leer a TODOS<br/><span style={{fontSize:8,fontWeight:400,opacity:.7}}>Sin filtros de usuario</span>
+                    </button>
+                    <button onClick={()=>setFilterAll(false)}
+                      style={{flex:1,padding:"10px 6px",borderRadius:10,border:`2px solid ${!filterAll?"#fe2c55":"#252535"}`,
+                        background:!filterAll?"rgba(254,44,85,.1)":"#0a0a0f",
+                        color:!filterAll?"#fe2c55":"#555",fontWeight:700,fontSize:11,cursor:"pointer",lineHeight:1.3}}>
+                      🎛️ Solo filtrados<br/><span style={{fontSize:8,fontWeight:400,opacity:.7}}>Según pestaña Filtros</span>
+                    </button>
                   </div>
-                  <Toggle on={ttsSkipEmojis} onChange={()=>setTtsSkipEmojis(!ttsSkipEmojis)} color="#8b5cf6"/>
                 </div>
 
                 {/* Selector de motor */}
@@ -1463,6 +1516,13 @@ function App() {
                       background:ttsMode==="google"?"rgba(66,133,244,.1)":undefined,
                       color:ttsMode==="google"?"#4285f4":undefined}}>
                     🔵 Google TTS<br/><span style={{fontSize:8,fontWeight:400,opacity:.7}}>Gratis, natural</span>
+                  </button>
+                  <button className={`mode-btn ${ttsMode==="ttsmaker"?"act":""}`}
+                    onClick={()=>setTtsMode("ttsmaker")}
+                    style={{borderColor:ttsMode==="ttsmaker"?"rgba(16,185,129,.4)":undefined,
+                      background:ttsMode==="ttsmaker"?"rgba(16,185,129,.1)":undefined,
+                      color:ttsMode==="ttsmaker"?"#10b981":undefined}}>
+                    🎙️ TTSMaker<br/><span style={{fontSize:8,fontWeight:400,opacity:.7}}>Gratis, IA</span>
                   </button>
                   <button className={`mode-btn ${ttsMode==="elevenlabs"?"act":""}`}
                     onClick={()=>setTtsMode("elevenlabs")}>
@@ -1561,6 +1621,38 @@ function App() {
                   </div>
                 )}
 
+                {/* TTSMaker */}
+                {ttsMode==="ttsmaker" && (
+                  <div style={{marginBottom:12}}>
+                    <label style={lbl}>Voz de TTSMaker</label>
+                    <select value={ttsMakerVoice} onChange={e=>setTtsMakerVoice(e.target.value)}
+                      style={{...inp,cursor:"pointer",marginBottom:8}}>
+                      {[
+                        {code:"es-MX-1",  label:"Español México – Femenina (Ana)"},
+                        {code:"es-MX-2",  label:"Español México – Masculina (Carlos)"},
+                        {code:"es-ES-1",  label:"Español España – Femenina (Sofia)"},
+                        {code:"es-ES-2",  label:"Español España – Masculina (Diego)"},
+                        {code:"es-US-1",  label:"Español EE.UU. – Femenina"},
+                        {code:"en-US-1",  label:"Inglés EE.UU. – Femenina"},
+                        {code:"en-US-2",  label:"Inglés EE.UU. – Masculina"},
+                        {code:"en-GB-1",  label:"Inglés UK – Femenina"},
+                        {code:"pt-BR-1",  label:"Portugués Brasil – Femenina"},
+                        {code:"fr-FR-1",  label:"Francés – Femenina"},
+                        {code:"de-DE-1",  label:"Alemán – Femenina"},
+                        {code:"it-IT-1",  label:"Italiano – Femenina"},
+                        {code:"ja-JP-1",  label:"Japonés – Femenina"},
+                        {code:"ko-KR-1",  label:"Coreano – Femenina"},
+                        {code:"zh-CN-1",  label:"Chino – Femenina"},
+                      ].map(v=><option key={v.code} value={v.code}>{v.label}</option>)}
+                    </select>
+                    <div style={{background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.2)",
+                      borderRadius:8,padding:"8px 12px",color:"#10b981",fontSize:10,lineHeight:1.6}}>
+                      🎙️ TTSMaker ofrece voces IA de alta calidad. Si falla por CORS en navegador,
+                      el bot usará automáticamente la voz del navegador como respaldo.
+                    </div>
+                  </div>
+                )}
+
                 {/* Volumen */}
                 <div style={{marginBottom:12}}>
                   <label style={lbl}>Volumen global: {ttsVol}%</label>
@@ -1568,6 +1660,49 @@ function App() {
                     onChange={e=>setTtsVol(Number(e.target.value))}
                     style={{width:"100%",accentColor:"#fe2c55"}}/>
                 </div>
+              </div>
+
+              {/* Bloquear palabras */}
+              <div style={C}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:12,marginBottom:4}}>
+                  🚫 Bloquear palabras
+                </div>
+                <div style={{color:"#444",fontSize:10,marginBottom:12}}>
+                  El bot reemplaza estas palabras con *** al leerlas en voz alta
+                </div>
+                <div style={{display:"flex",gap:8,marginBottom:10}}>
+                  <input value={blockedInput} onChange={e=>setBlockedInput(e.target.value)}
+                    onKeyDown={e=>{
+                      if(e.key==="Enter"){const w=blockedInput.trim().toLowerCase();
+                        if(w&&!blockedWords.includes(w)){setBlockedWords(p=>[...p,w]);setBlockedInput("");}
+                      }
+                    }}
+                    placeholder="palabra a bloquear..."
+                    style={{...inp,flex:1,marginBottom:0}}/>
+                  <button onClick={()=>{const w=blockedInput.trim().toLowerCase();
+                    if(w&&!blockedWords.includes(w)){setBlockedWords(p=>[...p,w]);setBlockedInput("");}}}
+                    style={{background:"rgba(254,44,85,.1)",border:"1px solid rgba(254,44,85,.3)",
+                      borderRadius:8,padding:"0 14px",color:"#fe2c55",fontWeight:700,cursor:"pointer",fontSize:12,whiteSpace:"nowrap"}}>
+                    + Agregar
+                  </button>
+                </div>
+                {blockedWords.length===0 ? (
+                  <div style={{color:"#333",fontSize:10,padding:"8px 12px",background:"#0a0a0f",
+                    border:"1px solid #1e1e2e",borderRadius:8}}>Sin palabras bloqueadas</div>
+                ) : (
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                    {blockedWords.map(w=>(
+                      <span key={w} style={{background:"rgba(254,44,85,.1)",border:"1px solid rgba(254,44,85,.25)",
+                        borderRadius:20,padding:"3px 10px",fontSize:10,color:"#fe2c55",
+                        display:"flex",alignItems:"center",gap:6}}>
+                        🚫 {w}
+                        <button onClick={()=>setBlockedWords(p=>p.filter(x=>x!==w))}
+                          style={{background:"none",border:"none",color:"#fe2c55",cursor:"pointer",
+                            fontSize:12,padding:"0 2px",lineHeight:1}}>×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Plantillas de lectura */}
@@ -1654,11 +1789,11 @@ function App() {
               {/* Resumen de filtros activos */}
               <div style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:14,padding:14}}>
                 <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:12,marginBottom:10}}>
-                  🎛️ Filtros activos
+                  🎛️ Estado actual
                 </div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                   {filterAll && <span style={{background:"rgba(37,244,238,.1)",border:"1px solid rgba(37,244,238,.25)",
-                    borderRadius:20,padding:"3px 10px",fontSize:10,color:"#25f4ee",fontWeight:600}}>✓ Leer todos</span>}
+                    borderRadius:20,padding:"3px 10px",fontSize:10,color:"#25f4ee",fontWeight:600}}>🌐 Leyendo a TODOS</span>}
                   {!filterAll && filterFollow && <span style={{background:"rgba(37,244,238,.1)",border:"1px solid rgba(37,244,238,.25)",
                     borderRadius:20,padding:"3px 10px",fontSize:10,color:"#25f4ee",fontWeight:600}}>✓ Seguidores</span>}
                   {!filterAll && filterMod && <span style={{background:"rgba(37,244,238,.1)",border:"1px solid rgba(37,244,238,.25)",
@@ -1669,8 +1804,6 @@ function App() {
                     borderRadius:20,padding:"3px 10px",fontSize:10,color:"#25f4ee",fontWeight:600}}>✓ Fan Club Nv.{filterFanLevel}+</span>}
                   {!filterAll && customUsers.length>0 && <span style={{background:"rgba(37,244,238,.1)",border:"1px solid rgba(37,244,238,.25)",
                     borderRadius:20,padding:"3px 10px",fontSize:10,color:"#25f4ee",fontWeight:600}}>✓ {customUsers.length} usuarios</span>}
-                  {ttsSkipEmojis && <span style={{background:"rgba(139,92,246,.1)",border:"1px solid rgba(139,92,246,.25)",
-                    borderRadius:20,padding:"3px 10px",fontSize:10,color:"#8b5cf6",fontWeight:600}}>😊 Emojis ignorados</span>}
                   {blockedWords.length>0 && <span style={{background:"rgba(254,44,85,.1)",border:"1px solid rgba(254,44,85,.25)",
                     borderRadius:20,padding:"3px 10px",fontSize:10,color:"#fe2c55",fontWeight:600}}>🚫 {blockedWords.length} palabras bloq.</span>}
                   {!filterAll && !filterFollow && !filterMod && !filterSuperFan && !filterFanClub && customUsers.length===0 && (
@@ -1678,7 +1811,7 @@ function App() {
                   )}
                 </div>
                 <div style={{marginTop:10,fontSize:9,color:"#333"}}>
-                  Configura en la pestaña <span style={{color:"#fe2c55",fontWeight:600}}>🎛️ Filtros</span>
+                  Ajusta filtros en la pestaña <span style={{color:"#fe2c55",fontWeight:600}}>🎛️ Filtros</span>
                 </div>
               </div>
             </div>
@@ -1696,14 +1829,9 @@ function App() {
                 <div style={{color:"#444",fontSize:10,marginBottom:14}}>
                   Define quién es leído por el bot TTS en el chat
                 </div>
-
-                {/* Leer todos */}
-                <div className="ftog">
-                  <div>
-                    <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>Leer todos</div>
-                    <div style={{fontSize:10,color:"#555",marginTop:2}}>Activa o desactiva todos los filtros</div>
-                  </div>
-                  <Toggle on={filterAll} onChange={()=>setFilterAll(!filterAll)} color="#25f4ee"/>
+                <div style={{background:"rgba(37,244,238,.05)",border:"1px solid rgba(37,244,238,.1)",borderRadius:8,
+                  padding:"8px 12px",marginBottom:14,fontSize:10,color:"#25f4ee"}}>
+                  💡 Para leer a <strong>todos</strong>, usa el botón en la pestaña 🔊 Voz &amp; Audio
                 </div>
 
                 {/* Seguidores */}
@@ -1799,53 +1927,26 @@ function App() {
                 )}
               </div>
 
-              {/* Palabras bloqueadas */}
-              <div style={C}>
-                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:12,marginBottom:4}}>
-                  🚫 Palabras bloqueadas
+              {/* Palabras bloqueadas — ahora en Voz & Audio */}
+              <div style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:14,padding:14}}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:12,marginBottom:8}}>
+                  🚫 Bloquear palabras
                 </div>
-                <div style={{color:"#444",fontSize:10,marginBottom:10}}>
-                  El bot reemplaza estas palabras con *** al leerlas
+                <div style={{color:"#555",fontSize:10,marginBottom:10}}>
+                  Configura palabras bloqueadas en la pestaña{" "}
+                  <span style={{color:"#fe2c55",fontWeight:700}}>🔊 Voz &amp; Audio</span>
                 </div>
-                <div style={{display:"flex",gap:8,marginBottom:10}}>
-                  <input
-                    value={blockedInput}
-                    onChange={e=>setBlockedInput(e.target.value)}
-                    onKeyDown={e=>{
-                      if(e.key==="Enter"&&blockedInput.trim()){
-                        const w=blockedInput.trim().toLowerCase();
-                        if(w&&!blockedWords.includes(w)){setBlockedWords(p=>[...p,w]);setBlockedInput("");}
-                      }
-                    }}
-                    placeholder="palabra a bloquear..."
-                    style={{flex:1,background:"#0a0a0f",border:"1px solid #252535",borderRadius:8,
-                      padding:"9px 12px",color:"#fff",fontSize:12,outline:"none"}}/>
-                  <button
-                    onClick={()=>{
-                      const w=blockedInput.trim().toLowerCase();
-                      if(w&&!blockedWords.includes(w)){setBlockedWords(p=>[...p,w]);setBlockedInput("");}
-                    }}
-                    style={{background:"rgba(254,44,85,.15)",border:"1px solid rgba(254,44,85,.3)",
-                      borderRadius:8,padding:"9px 14px",color:"#fe2c55",fontWeight:700,
-                      cursor:"pointer",fontSize:12,whiteSpace:"nowrap"}}>
-                    + Agregar
-                  </button>
-                </div>
-                {blockedWords.length===0 ? (
-                  <div style={{color:"#333",fontSize:11,textAlign:"center",padding:"12px 0"}}>
-                    Sin palabras bloqueadas
-                  </div>
-                ) : (
+                {blockedWords.length>0 && (
                   <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                     {blockedWords.map(w=>(
-                      <div key={w} style={{display:"flex",alignItems:"center",gap:5,
-                        background:"rgba(254,44,85,.08)",border:"1px solid rgba(254,44,85,.2)",
-                        borderRadius:20,padding:"3px 10px 3px 12px",fontSize:11,color:"#fe2c55",fontWeight:600}}>
-                        {w}
+                      <span key={w} style={{background:"rgba(254,44,85,.1)",border:"1px solid rgba(254,44,85,.25)",
+                        borderRadius:20,padding:"3px 10px",fontSize:10,color:"#fe2c55",
+                        display:"flex",alignItems:"center",gap:6}}>
+                        🚫 {w}
                         <button onClick={()=>setBlockedWords(p=>p.filter(x=>x!==w))}
-                          style={{background:"transparent",border:"none",color:"#fe2c55",
-                            cursor:"pointer",fontSize:12,padding:0,lineHeight:1,marginLeft:2}}>✕</button>
-                      </div>
+                          style={{background:"none",border:"none",color:"#fe2c55",cursor:"pointer",
+                            fontSize:12,padding:"0 2px",lineHeight:1}}>×</button>
+                      </span>
                     ))}
                   </div>
                 )}
