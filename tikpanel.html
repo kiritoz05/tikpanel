@@ -93,18 +93,26 @@ function filterText(text, blocked, skipEmoji) {
 }
 
 function shouldReadUser(data, allR, followR, modR, sfanR, fcR, fcLvlR, cusR) {
-  if (allR.current) return true;
+  // Si ningún filtro está activo → leer todo (comportamiento por defecto)
+  const anyFilterOn = followR.current || modR.current || sfanR.current || fcR.current || (cusR.current||[]).length > 0;
+  if (!anyFilterOn || allR.current) return true;
+
+  // Hay al menos un filtro activo → verificar si el usuario pasa alguno
   const user = (data.user||data.uniqueId||"").toLowerCase().replace(/^@/,'');
   if ((cusR.current||[]).some(u => u.toLowerCase().replace(/^@/,'') === user)) return true;
-  if (followR.current && data.followRole === 1) return true;
-  if (modR.current    && data.isModerator === true) return true;
-  if (sfanR.current   && data.isSubscriber === true) return true;
+  // followRole: 1=seguidor, 2=amigo. isModerator, isSubscriber pueden venir como bool o 1/0
+  if (followR.current && (data.followRole === 1 || data.followRole === 2)) return true;
+  if (modR.current    && (data.isModerator === true  || data.isModerator === 1)) return true;
+  if (sfanR.current   && (data.isSubscriber === true || data.isSubscriber === 1)) return true;
   if (fcR.current     && (data.teamMemberLevel||0) >= (fcLvlR.current||1)) return true;
-  const anyActive = followR.current||modR.current||sfanR.current||fcR.current||(cusR.current||[]).length>0;
-  if (!anyActive) return true;
   return false;
 }
 
+
+/* ─── Apply TTS template ──────────────────────────── */
+function applyTpl(tpl, vars) {
+  return tpl.replace(/\{(\w+)\}/g, (_, k) => (vars[k] !== undefined ? vars[k] : ''));
+}
 function enqueueTTS(text, voiceId, vol, mode) {
   if (!text || !text.trim()) return;
   ttsQueue.push({ text: text.trim(), voiceId, vol, mode });
@@ -597,6 +605,19 @@ function App() {
   const [blockedInput,   setBlockedInput]   = useState("");
   // Emojis en TTS
   const [ttsSkipEmojis,  setTtsSkipEmojis]  = useState(() => ld("ttsSkipEmojis", true));
+  // Plantillas TTS
+  const [ttsChatTpl,    setTtsChatTpl]    = useState(() => ld("ttsChatTpl",    "{nickname} dice {message}"));
+  const [ttsGiftTpl,    setTtsGiftTpl]    = useState(() => ld("ttsGiftTpl",    "{username} envió {giftName} x{repeatCount}, valor {totalValue}"));
+  const [ttsFollowTpl,  setTtsFollowTpl]  = useState(() => ld("ttsFollowTpl",  "{username} te siguió"));
+  const [ttsShareTpl,   setTtsShareTpl]   = useState(() => ld("ttsShareTpl",   "{username} compartió el live"));
+  const [ttsJoinTpl,    setTtsJoinTpl]    = useState(() => ld("ttsJoinTpl",    "{username} se unió al live"));
+  const [ttsSuperFanTpl,setTtsSuperFanTpl]= useState(() => ld("ttsSuperFanTpl","{username} se hizo super fan"));
+  // Qué eventos leer con TTS (además del chat)
+  const [ttsReadGift,   setTtsReadGift]   = useState(() => ld("ttsReadGift",   true));
+  const [ttsReadFollow, setTtsReadFollow] = useState(() => ld("ttsReadFollow", true));
+  const [ttsReadShare,  setTtsReadShare]  = useState(() => ld("ttsReadShare",  false));
+  const [ttsReadJoin,   setTtsReadJoin]   = useState(() => ld("ttsReadJoin",   false));
+  const [ttsReadSuperFan,setTtsReadSuperFan]=useState(() => ld("ttsReadSuperFan",false));
   // Refs para filtros
   const filterAllR      = useRef(filterAll);
   const filterFollowR   = useRef(filterFollow);
@@ -607,6 +628,17 @@ function App() {
   const customUsersR    = useRef(customUsers);
   const blockedWordsR   = useRef(blockedWords);
   const ttsSkipEmojisR  = useRef(ttsSkipEmojis);
+  const ttsChatTplR     = useRef(ttsChatTpl);
+  const ttsGiftTplR     = useRef(ttsGiftTpl);
+  const ttsFollowTplR   = useRef(ttsFollowTpl);
+  const ttsShareTplR    = useRef(ttsShareTpl);
+  const ttsJoinTplR     = useRef(ttsJoinTpl);
+  const ttsSuperFanTplR = useRef(ttsSuperFanTpl);
+  const ttsReadGiftR    = useRef(ttsReadGift);
+  const ttsReadFollowR  = useRef(ttsReadFollow);
+  const ttsReadShareR   = useRef(ttsReadShare);
+  const ttsReadJoinR    = useRef(ttsReadJoin);
+  const ttsReadSuperFanR= useRef(ttsReadSuperFan);
 
   const [elOk,     setElOk]     = useState(null); // null=sin probar, true=ok, false=error
 
@@ -655,6 +687,28 @@ function App() {
   useEffect(()=>{ customUsersR.current=customUsers;       sv("customUsers",    customUsers);    }, [customUsers]);
   useEffect(()=>{ blockedWordsR.current=blockedWords;     sv("blockedWords",   blockedWords);   }, [blockedWords]);
   useEffect(()=>{ ttsSkipEmojisR.current=ttsSkipEmojis;  sv("ttsSkipEmojis",  ttsSkipEmojis);  }, [ttsSkipEmojis]);
+  useEffect(()=>{ sv("ttsChatTpl",     ttsChatTpl);    }, [ttsChatTpl]);
+  useEffect(()=>{ sv("ttsGiftTpl",     ttsGiftTpl);    }, [ttsGiftTpl]);
+  useEffect(()=>{ sv("ttsFollowTpl",   ttsFollowTpl);  }, [ttsFollowTpl]);
+  useEffect(()=>{ sv("ttsShareTpl",    ttsShareTpl);   }, [ttsShareTpl]);
+  useEffect(()=>{ sv("ttsJoinTpl",     ttsJoinTpl);    }, [ttsJoinTpl]);
+  useEffect(()=>{ sv("ttsSuperFanTpl", ttsSuperFanTpl);}, [ttsSuperFanTpl]);
+  useEffect(()=>{ ttsChatTplR.current=ttsChatTpl;         }, [ttsChatTpl]);
+  useEffect(()=>{ ttsGiftTplR.current=ttsGiftTpl;         }, [ttsGiftTpl]);
+  useEffect(()=>{ ttsFollowTplR.current=ttsFollowTpl;     }, [ttsFollowTpl]);
+  useEffect(()=>{ ttsShareTplR.current=ttsShareTpl;       }, [ttsShareTpl]);
+  useEffect(()=>{ ttsJoinTplR.current=ttsJoinTpl;         }, [ttsJoinTpl]);
+  useEffect(()=>{ ttsSuperFanTplR.current=ttsSuperFanTpl; }, [ttsSuperFanTpl]);
+  useEffect(()=>{ ttsReadGiftR.current=ttsReadGift;       sv("ttsReadGift",ttsReadGift);       }, [ttsReadGift]);
+  useEffect(()=>{ ttsReadFollowR.current=ttsReadFollow;   sv("ttsReadFollow",ttsReadFollow);   }, [ttsReadFollow]);
+  useEffect(()=>{ ttsReadShareR.current=ttsReadShare;     sv("ttsReadShare",ttsReadShare);     }, [ttsReadShare]);
+  useEffect(()=>{ ttsReadJoinR.current=ttsReadJoin;       sv("ttsReadJoin",ttsReadJoin);       }, [ttsReadJoin]);
+  useEffect(()=>{ ttsReadSuperFanR.current=ttsReadSuperFan; sv("ttsReadSuperFan",ttsReadSuperFan); }, [ttsReadSuperFan]);
+  useEffect(()=>{ sv("ttsReadGift",    ttsReadGift);   }, [ttsReadGift]);
+  useEffect(()=>{ sv("ttsReadFollow",  ttsReadFollow); }, [ttsReadFollow]);
+  useEffect(()=>{ sv("ttsReadShare",   ttsReadShare);  }, [ttsReadShare]);
+  useEffect(()=>{ sv("ttsReadJoin",    ttsReadJoin);   }, [ttsReadJoin]);
+  useEffect(()=>{ sv("ttsReadSuperFan",ttsReadSuperFan);}, [ttsReadSuperFan]);
 
   useEffect(()=>{ sv("tab",   tab);   }, [tab]);
   useEffect(()=>{ sv("googleVoice", googleVoice); }, [googleVoice]);
@@ -759,7 +813,8 @@ function App() {
         setLog(p=>[{t:"msg",tx:`💬 @${d.nickname||d.user}: ${d.comment}`},...p].slice(0,50));
         setStats(p=>({...p, messages:p.messages+1}));
         if (ttsOnR.current && shouldReadUser(d, filterAllR, filterFollowR, filterModR, filterSuperFanR, filterFanClubR, filterFanLevelR, customUsersR)) {
-          const rawText = `${d.nickname||d.user} dice: ${d.comment}`;
+          const tpl = ttsChatTplR.current || "{nickname} dice {message}";
+          const rawText = applyTpl(tpl, {username:d.user||"", nickname:d.nickname||d.user||"", message:d.comment||""});
           const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
           if (text) {
             if (ttsModeR.current==="elevenlabs") {
@@ -774,6 +829,19 @@ function App() {
       } else if (d.type==="gift") {
         setLog(p=>[{t:"gift",tx:`🎁 @${d.nickname||d.user} → ${d.giftCount}× ${d.giftName}`},...p].slice(0,50));
         setStats(p=>({...p, gifts:p.gifts+1}));
+        if (ttsOnR.current && ttsReadGiftR.current) {
+          const tpl = ttsGiftTplR.current || "{username} envió {giftName} x{repeatCount}";
+          const rawText = applyTpl(tpl, {
+            username: d.user||"", nickname: d.nickname||d.user||"",
+            giftName: d.giftName||"", repeatCount: d.giftCount||1,
+            totalValue: d.diamondCount||0,
+          });
+          const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
+          if (text) {
+            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:nativeVoiceR.current;
+            enqueueTTS(text, vp, ttsVolR.current/100, ttsModeR.current);
+          }
+        }
         const dm = d.diamondCount||0;
         setTotDia(p=>p+dm);
         setTapR(prev=>{
@@ -786,6 +854,15 @@ function App() {
       } else if (d.type==="follow") {
         setLog(p=>[{t:"follow",tx:`➕ @${d.nickname||d.user} te siguió`},...p].slice(0,50));
         setStats(p=>({...p, follows:p.follows+1}));
+        if (ttsOnR.current && ttsReadFollowR.current) {
+          const tpl = ttsFollowTplR.current || "{username} te siguió";
+          const rawText = applyTpl(tpl, {username:d.user||"", nickname:d.nickname||d.user||""});
+          const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
+          if (text) {
+            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:nativeVoiceR.current;
+            enqueueTTS(text, vp, ttsVolR.current/100, ttsModeR.current);
+          }
+        }
         fireAction("Follow Alert","", d.nickname||d.user);
       } else if (d.type==="like") {
         // likeCount = cantidad de likes enviados en este batch por el usuario
@@ -808,9 +885,27 @@ function App() {
         fireAction("Like Alert","", d.nickname||d.user);
       } else if (d.type==="sub") {
         setLog(p=>[{t:"sub",tx:`⭐ @${d.nickname||d.user} se suscribió`},...p].slice(0,50));
+        if (ttsOnR.current && ttsReadSuperFanR.current) {
+          const tpl = ttsSuperFanTplR.current || "{username} se hizo super fan";
+          const rawText = applyTpl(tpl, {username:d.user||"", nickname:d.nickname||d.user||""});
+          const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
+          if (text) {
+            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:nativeVoiceR.current;
+            enqueueTTS(text, vp, ttsVolR.current/100, ttsModeR.current);
+          }
+        }
         fireAction("Sub Alert","", d.nickname||d.user);
       } else if (d.type==="share") {
         setLog(p=>[{t:"share",tx:`📤 @${d.nickname||d.user} compartió`},...p].slice(0,50));
+        if (ttsOnR.current && ttsReadShareR.current) {
+          const tpl = ttsShareTplR.current || "{username} compartió el live";
+          const rawText = applyTpl(tpl, {username:d.user||"", nickname:d.nickname||d.user||""});
+          const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
+          if (text) {
+            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:nativeVoiceR.current;
+            enqueueTTS(text, vp, ttsVolR.current/100, ttsModeR.current);
+          }
+        }
         fireAction("Share Alert","", d.nickname||d.user);
       }
     });
@@ -824,6 +919,15 @@ function App() {
     });
     sock.on("member", d => {
       if (!d.user) return;
+      if (ttsOnR.current && ttsReadJoinR.current) {
+        const tpl = ttsJoinTplR.current || "{username} se unió al live";
+        const rawText = applyTpl(tpl, {username:d.user||"", nickname:d.nickname||d.user||""});
+        const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
+        if (text) {
+          const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:nativeVoiceR.current;
+          enqueueTTS(text, vp, ttsVolR.current/100, ttsModeR.current);
+        }
+      }
       // Agregar al historial de quienes entraron
       setViewR(prev => {
         const ex = prev.find(u => u.user === d.user);
@@ -1464,6 +1568,60 @@ function App() {
                     onChange={e=>setTtsVol(Number(e.target.value))}
                     style={{width:"100%",accentColor:"#fe2c55"}}/>
                 </div>
+              </div>
+
+              {/* Plantillas de lectura */}
+              <div style={C}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:12,marginBottom:4}}>
+                  📋 Plantillas de lectura
+                </div>
+                <div style={{color:"#444",fontSize:10,marginBottom:12}}>
+                  Variables: <span style={{color:"#25f4ee",fontFamily:"monospace",fontSize:9}}>
+                    {"{username}"} {"{nickname}"} {"{message}"} {"{giftName}"} {"{repeatCount}"} {"{totalValue}"}
+                  </span>
+                </div>
+
+                {[
+                  {label:"💬 Chat", tpl:ttsChatTpl, setTpl:setTtsChatTpl, key:"ttsChatTpl",
+                   enableKey:"chat", enabled:true, vars:"{nickname} {username} {message}",
+                   def:"{nickname} dice {message}"},
+                  {label:"🎁 Regalos", tpl:ttsGiftTpl, setTpl:setTtsGiftTpl, key:"ttsGiftTpl",
+                   enableKey:"gift", enabled:ttsReadGift, setEnabled:setTtsReadGift, vars:"{username} {nickname} {giftName} {repeatCount} {totalValue}",
+                   def:"{username} envió {giftName} x{repeatCount}"},
+                  {label:"➕ Seguidores", tpl:ttsFollowTpl, setTpl:setTtsFollowTpl, key:"ttsFollowTpl",
+                   enableKey:"follow", enabled:ttsReadFollow, setEnabled:setTtsReadFollow, vars:"{username} {nickname}",
+                   def:"{username} te siguió"},
+                  {label:"📤 Compartidos", tpl:ttsShareTpl, setTpl:setTtsShareTpl, key:"ttsShareTpl",
+                   enableKey:"share", enabled:ttsReadShare, setEnabled:setTtsReadShare, vars:"{username} {nickname}",
+                   def:"{username} compartió el live"},
+                  {label:"🚪 Se Unió", tpl:ttsJoinTpl, setTpl:setTtsJoinTpl, key:"ttsJoinTpl",
+                   enableKey:"join", enabled:ttsReadJoin, setEnabled:setTtsReadJoin, vars:"{username} {nickname}",
+                   def:"{username} se unió al live"},
+                  {label:"⭐ Super Fan", tpl:ttsSuperFanTpl, setTpl:setTtsSuperFanTpl, key:"ttsSuperFanTpl",
+                   enableKey:"superfan", enabled:ttsReadSuperFan, setEnabled:setTtsReadSuperFan, vars:"{username} {nickname}",
+                   def:"{username} se hizo super fan"},
+                ].map(item => (
+                  <div key={item.key} style={{marginBottom:14}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:5}}>
+                      <label style={{...lbl,marginBottom:0,color:"#aaa"}}>{item.label}</label>
+                      {item.setEnabled && (
+                        <Toggle on={item.enabled} onChange={()=>item.setEnabled(!item.enabled)} color="#25f4ee" size="sm"/>
+                      )}
+                      {!item.setEnabled && (
+                        <span style={{fontSize:9,color:"#444",fontStyle:"italic"}}>siempre activo</span>
+                      )}
+                    </div>
+                    <input
+                      value={item.tpl}
+                      onChange={e=>{item.setTpl(e.target.value); sv(item.key, e.target.value);}}
+                      disabled={item.setEnabled && !item.enabled}
+                      style={{...inp,fontSize:11,opacity:item.setEnabled&&!item.enabled?0.35:1}}
+                    />
+                    <div style={{fontSize:9,color:"#333",marginTop:3}}>
+                      Variables: <span style={{color:"#444",fontFamily:"monospace"}}>{item.vars}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               {/* Probar TTS */}
