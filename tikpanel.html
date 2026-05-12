@@ -83,8 +83,9 @@ function stripEmojis(text) {
   return text.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FAFF}]/gu, '').replace(/\s+/g,' ').trim();
 }
 
-function filterText(text, blocked, skipEmoji) {
-  let t = skipEmoji ? stripEmojis(text) : text;
+function filterText(text, blocked) {
+  // Siempre quitar emojis — el bot solo lee texto
+  let t = stripEmojis(text);
   for (const w of (blocked||[])) {
     if (!w) continue;
     try { t = t.replace(new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\b','gi'),'***'); } catch(e){}
@@ -128,8 +129,6 @@ async function drainQueue() {
       await speakElevenLabs(item.text, item.voiceId, item.vol);
     } else if (item.mode === "google") {
       await speakGoogle(item.text, item.voiceId, item.vol);
-    } else if (item.mode === "ttsmaker") {
-      await speakTTSMaker(item.text, item.voiceId, item.vol);
     } else {
       await speakNative(item.text, item.voiceId, item.vol);
     }
@@ -200,35 +199,7 @@ function speakNative(text, voiceId, vol) {
   });
 }
 
-async function speakTTSMaker(text, voiceId, vol) {
-  // TTSMaker API gratuita — no requiere clave para uso básico
-  const VOICE = voiceId || "en-US-1"; // voz por defecto
-  try {
-    const r = await fetch("https://api.ttsmaker.com/v1/create-tts-order", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        token: "ttsmaker-demo-token",
-        text,
-        voice_id: VOICE,
-        audio_format: "mp3",
-        audio_speed: 1.0,
-        audio_volume: 1,
-        text_paragraph_pause_time: 0,
-      }),
-      signal: AbortSignal.timeout(12000),
-    });
-    const json = await r.json();
-    if (json?.status === "success" && json?.audio_file_url) {
-      await playAudio(json.audio_file_url, vol);
-      return;
-    }
-    throw new Error(json?.error_details || "TTSMaker sin audio_url");
-  } catch(e) {
-    console.warn("TTSMaker falló, usando nativo:", e.message);
-    await speakNative(text, null, vol);
-  }
-}
+
 
 function playAudio(src, vol) {
   return new Promise((res) => {
@@ -628,7 +599,7 @@ function App() {
   const [vTab, setVTab] = useState("historial"); // sub-tab espectadores
 
   // TTS settings
-  const [ttsMode,  setTtsMode]  = useState(() => ld("ttsMode", "native"));   // "native" | "google" | "elevenlabs" | "ttsmaker"
+  const [ttsMode,  setTtsMode]  = useState(() => ld("ttsMode", "native"));   // "native" | "google" | "elevenlabs"
   const [ttsOn,    setTtsOn]    = useState(() => ld("ttsOn", true));
   const [ttsVol,   setTtsVol]   = useState(() => ld("ttsVol", 80));
   const [ttsVoice, setTtsVoice] = useState(() => ld("ttsVoice", "cgSgspJ2msm6clMCkdW9")); // EL voice ID
@@ -638,7 +609,6 @@ function App() {
   const [nativePitch,  setNativePitch]  = useState(() => ld("nativePitch", 1));
   const [elVoices, setElVoices] = useState(DEF_VOICES_EL);
   const [googleVoice, setGoogleVoice] = useState(() => ld("googleVoice", "es-MX"));
-  const [ttsMakerVoice, setTtsMakerVoice] = useState(() => ld("ttsMakerVoice", "es-MX-1"));
   // Filtros de usuarios
   const [filterAll,      setFilterAll]      = useState(() => ld("filterAll",      false));
   const [filterFollow,   setFilterFollow]   = useState(() => ld("filterFollow",   true));
@@ -652,7 +622,6 @@ function App() {
   const [blockedWords,   setBlockedWords]   = useState(() => ld("blockedWords",   []));
   const [blockedInput,   setBlockedInput]   = useState("");
   // Emojis en TTS
-  const [ttsSkipEmojis,  setTtsSkipEmojis]  = useState(() => ld("ttsSkipEmojis", true));
   // Plantillas TTS
   const [ttsChatTpl,    setTtsChatTpl]    = useState(() => ld("ttsChatTpl",    "{nickname} dice {message}"));
   const [ttsGiftTpl,    setTtsGiftTpl]    = useState(() => ld("ttsGiftTpl",    "{username} envió {giftName} x{repeatCount}, valor {totalValue}"));
@@ -675,7 +644,6 @@ function App() {
   const filterFanLevelR = useRef(filterFanLevel);
   const customUsersR    = useRef(customUsers);
   const blockedWordsR   = useRef(blockedWords);
-  const ttsSkipEmojisR  = useRef(ttsSkipEmojis);
   const ttsChatTplR     = useRef(ttsChatTpl);
   const ttsGiftTplR     = useRef(ttsGiftTpl);
   const ttsFollowTplR   = useRef(ttsFollowTpl);
@@ -697,7 +665,6 @@ function App() {
   const ttsVoiceR = useRef(ttsVoice);
   const nativeVoiceR = useRef(nativeVoice);
   const googleVoiceR = useRef(googleVoice);
-  const ttsMakerVoiceR = useRef(ttsMakerVoice);
   const nativeRateR  = useRef(nativeRate);
   const nativePitchR = useRef(nativePitch);
   const actsR     = useRef([]);
@@ -723,7 +690,6 @@ function App() {
   useEffect(()=>{ ttsVoiceR.current=ttsVoice; sv("ttsVoice",ttsVoice);}, [ttsVoice]);
   useEffect(()=>{ nativeVoiceR.current=nativeVoice; sv("nativeVoice",nativeVoice);}, [nativeVoice]);
   useEffect(()=>{ googleVoiceR.current=googleVoice; sv("googleVoice",googleVoice);}, [googleVoice]);
-  useEffect(()=>{ ttsMakerVoiceR.current=ttsMakerVoice; sv("ttsMakerVoice",ttsMakerVoice);}, [ttsMakerVoice]);
   useEffect(()=>{ nativeRateR.current=nativeRate;   sv("nativeRate",  nativeRate);  nativeTTSConfig.rate=nativeRate; }, [nativeRate]);
   useEffect(()=>{ nativePitchR.current=nativePitch; sv("nativePitch", nativePitch); nativeTTSConfig.pitch=nativePitch; }, [nativePitch]);
   useEffect(()=>{ actsR.current=actions;   sv("actions4", actions);  }, [actions]);
@@ -736,7 +702,6 @@ function App() {
   useEffect(()=>{ filterFanLevelR.current=filterFanLevel; sv("filterFanLevel", filterFanLevel); }, [filterFanLevel]);
   useEffect(()=>{ customUsersR.current=customUsers;       sv("customUsers",    customUsers);    }, [customUsers]);
   useEffect(()=>{ blockedWordsR.current=blockedWords;     sv("blockedWords",   blockedWords);   }, [blockedWords]);
-  useEffect(()=>{ ttsSkipEmojisR.current=ttsSkipEmojis;  sv("ttsSkipEmojis",  ttsSkipEmojis);  }, [ttsSkipEmojis]);
   useEffect(()=>{ sv("ttsChatTpl",     ttsChatTpl);    }, [ttsChatTpl]);
   useEffect(()=>{ sv("ttsGiftTpl",     ttsGiftTpl);    }, [ttsGiftTpl]);
   useEffect(()=>{ sv("ttsFollowTpl",   ttsFollowTpl);  }, [ttsFollowTpl]);
@@ -825,7 +790,7 @@ function App() {
       // TTS
       if (act.ttsOn && act.ttsText && ttsOnR.current) {
         const rawText = act.ttsText.replace(/@usuario/gi, nickname);
-        const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
+        const text = filterText(rawText, blockedWordsR.current);
         if (text) {
           if (ttsModeR.current === "elevenlabs") {
             enqueueTTS(text, ttsVoiceR.current, ttsVolR.current/100, "elevenlabs");
@@ -865,9 +830,9 @@ function App() {
         if (ttsOnR.current && shouldReadUser(d, filterAllR, filterFollowR, filterModR, filterSuperFanR, filterFanClubR, filterFanLevelR, customUsersR)) {
           const tpl = ttsChatTplR.current || "{nickname} dice {message}";
           const rawText = applyTpl(tpl, {username:d.user||"", nickname:d.nickname||d.user||"", message:d.comment||""});
-          const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
+          const text = filterText(rawText, blockedWordsR.current);
           if (text) {
-            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:ttsModeR.current==="ttsmaker"?ttsMakerVoiceR.current:nativeVoiceR.current;
+            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:nativeVoiceR.current;
             enqueueTTS(text, vp, ttsVolR.current/100, ttsModeR.current);
           }
         }
@@ -881,9 +846,9 @@ function App() {
             giftName: d.giftName||"", repeatCount: d.giftCount||1,
             totalValue: d.diamondCount||0,
           });
-          const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
+          const text = filterText(rawText, blockedWordsR.current);
           if (text) {
-            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:ttsModeR.current==="ttsmaker"?ttsMakerVoiceR.current:nativeVoiceR.current;
+            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:nativeVoiceR.current;
             enqueueTTS(text, vp, ttsVolR.current/100, ttsModeR.current);
           }
         }
@@ -902,9 +867,9 @@ function App() {
         if (ttsOnR.current && ttsReadFollowR.current) {
           const tpl = ttsFollowTplR.current || "{username} te siguió";
           const rawText = applyTpl(tpl, {username:d.user||"", nickname:d.nickname||d.user||""});
-          const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
+          const text = filterText(rawText, blockedWordsR.current);
           if (text) {
-            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:ttsModeR.current==="ttsmaker"?ttsMakerVoiceR.current:nativeVoiceR.current;
+            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:nativeVoiceR.current;
             enqueueTTS(text, vp, ttsVolR.current/100, ttsModeR.current);
           }
         }
@@ -933,9 +898,9 @@ function App() {
         if (ttsOnR.current && ttsReadSuperFanR.current) {
           const tpl = ttsSuperFanTplR.current || "{username} se hizo super fan";
           const rawText = applyTpl(tpl, {username:d.user||"", nickname:d.nickname||d.user||""});
-          const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
+          const text = filterText(rawText, blockedWordsR.current);
           if (text) {
-            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:ttsModeR.current==="ttsmaker"?ttsMakerVoiceR.current:nativeVoiceR.current;
+            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:nativeVoiceR.current;
             enqueueTTS(text, vp, ttsVolR.current/100, ttsModeR.current);
           }
         }
@@ -945,9 +910,9 @@ function App() {
         if (ttsOnR.current && ttsReadShareR.current) {
           const tpl = ttsShareTplR.current || "{username} compartió el live";
           const rawText = applyTpl(tpl, {username:d.user||"", nickname:d.nickname||d.user||""});
-          const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
+          const text = filterText(rawText, blockedWordsR.current);
           if (text) {
-            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:ttsModeR.current==="ttsmaker"?ttsMakerVoiceR.current:nativeVoiceR.current;
+            const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:nativeVoiceR.current;
             enqueueTTS(text, vp, ttsVolR.current/100, ttsModeR.current);
           }
         }
@@ -967,9 +932,9 @@ function App() {
       if (ttsOnR.current && ttsReadJoinR.current) {
         const tpl = ttsJoinTplR.current || "{username} se unió al live";
         const rawText = applyTpl(tpl, {username:d.user||"", nickname:d.nickname||d.user||""});
-        const text = filterText(rawText, blockedWordsR.current, ttsSkipEmojisR.current);
+        const text = filterText(rawText, blockedWordsR.current);
         if (text) {
-          const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:ttsModeR.current==="ttsmaker"?ttsMakerVoiceR.current:nativeVoiceR.current;
+          const vp = ttsModeR.current==="elevenlabs"?ttsVoiceR.current:ttsModeR.current==="google"?googleVoiceR.current:nativeVoiceR.current;
           enqueueTTS(text, vp, ttsVolR.current/100, ttsModeR.current);
         }
       }
@@ -1517,13 +1482,6 @@ function App() {
                       color:ttsMode==="google"?"#4285f4":undefined}}>
                     🔵 Google TTS<br/><span style={{fontSize:8,fontWeight:400,opacity:.7}}>Gratis, natural</span>
                   </button>
-                  <button className={`mode-btn ${ttsMode==="ttsmaker"?"act":""}`}
-                    onClick={()=>setTtsMode("ttsmaker")}
-                    style={{borderColor:ttsMode==="ttsmaker"?"rgba(16,185,129,.4)":undefined,
-                      background:ttsMode==="ttsmaker"?"rgba(16,185,129,.1)":undefined,
-                      color:ttsMode==="ttsmaker"?"#10b981":undefined}}>
-                    🎙️ TTSMaker<br/><span style={{fontSize:8,fontWeight:400,opacity:.7}}>Gratis, IA</span>
-                  </button>
                   <button className={`mode-btn ${ttsMode==="elevenlabs"?"act":""}`}
                     onClick={()=>setTtsMode("elevenlabs")}>
                     ⚡ ElevenLabs<br/><span style={{fontSize:8,fontWeight:400,opacity:.7}}>Alta calidad</span>
@@ -1617,38 +1575,6 @@ function App() {
                       borderRadius:8,padding:"8px 12px",color:"#4285f4",fontSize:10,lineHeight:1.6}}>
                       🔵 Usa la API gratuita de Google Translate TTS. Sin límites para uso normal.
                       Requiere internet.
-                    </div>
-                  </div>
-                )}
-
-                {/* TTSMaker */}
-                {ttsMode==="ttsmaker" && (
-                  <div style={{marginBottom:12}}>
-                    <label style={lbl}>Voz de TTSMaker</label>
-                    <select value={ttsMakerVoice} onChange={e=>setTtsMakerVoice(e.target.value)}
-                      style={{...inp,cursor:"pointer",marginBottom:8}}>
-                      {[
-                        {code:"es-MX-1",  label:"Español México – Femenina (Ana)"},
-                        {code:"es-MX-2",  label:"Español México – Masculina (Carlos)"},
-                        {code:"es-ES-1",  label:"Español España – Femenina (Sofia)"},
-                        {code:"es-ES-2",  label:"Español España – Masculina (Diego)"},
-                        {code:"es-US-1",  label:"Español EE.UU. – Femenina"},
-                        {code:"en-US-1",  label:"Inglés EE.UU. – Femenina"},
-                        {code:"en-US-2",  label:"Inglés EE.UU. – Masculina"},
-                        {code:"en-GB-1",  label:"Inglés UK – Femenina"},
-                        {code:"pt-BR-1",  label:"Portugués Brasil – Femenina"},
-                        {code:"fr-FR-1",  label:"Francés – Femenina"},
-                        {code:"de-DE-1",  label:"Alemán – Femenina"},
-                        {code:"it-IT-1",  label:"Italiano – Femenina"},
-                        {code:"ja-JP-1",  label:"Japonés – Femenina"},
-                        {code:"ko-KR-1",  label:"Coreano – Femenina"},
-                        {code:"zh-CN-1",  label:"Chino – Femenina"},
-                      ].map(v=><option key={v.code} value={v.code}>{v.label}</option>)}
-                    </select>
-                    <div style={{background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.2)",
-                      borderRadius:8,padding:"8px 12px",color:"#10b981",fontSize:10,lineHeight:1.6}}>
-                      🎙️ TTSMaker ofrece voces IA de alta calidad. Si falla por CORS en navegador,
-                      el bot usará automáticamente la voz del navegador como respaldo.
                     </div>
                   </div>
                 )}
