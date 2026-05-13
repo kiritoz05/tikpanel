@@ -150,7 +150,7 @@ function normalizeBattleUser(u) {
   if (!u) return null;
   const hostName     = u.uniqueId || u.displayId || u.userId || u.id || "?";
   const hostNickname = u.nickname || u.displayName || u.name || hostName;
-  const points       = Number(u.battleScore || u.score || u.points || u.teamPoints || 0);
+  const points       = Number(u.battleScore || u.teamPoints || u.totalScore || u.score || u.points || 0);
   if (hostName === "?") return null;
   return { hostName, hostNickname, points };
 }
@@ -159,7 +159,12 @@ function normalizeBattleUser(u) {
 function extractTeams(data) {
   if (Array.isArray(data.battleArmies) && data.battleArmies.length > 0) {
     return data.battleArmies.map(army => {
-      const pts        = Number(army.points || army.teamPoints || army.score || 0);
+      // Intentar todos los campos posibles; si todo es 0, sumar battleScore de participantes
+      let pts = Number(army.points || army.teamPoints || army.score || army.battleScore || army.totalScore || 0);
+      if (pts === 0 && Array.isArray(army.participants) && army.participants.length > 0) {
+        pts = army.participants.reduce((sum, p) =>
+          sum + Number(p.battleScore || p.score || p.points || p.teamPoints || 0), 0);
+      }
       const hostUserId = String(army.hostUserId || army.hostId || "");
 
       let hostName     = hostUserId || "?";
@@ -199,7 +204,7 @@ function extractTeams(data) {
       hostName:     u.uniqueId   || u.displayId || u.userId || "?",
       hostNickname: u.nickname   || u.displayName || u.uniqueId || "?",
       userId:       String(u.userId || u.id || ""),
-      points:       Number(u.battleScore || u.score || u.points || 0),
+      points:       Number(u.battleScore || u.teamPoints || u.score || u.points || u.totalScore || 0),
     })).filter(t => t.hostName !== "?");
   }
 
@@ -287,6 +292,7 @@ async function startTikTokConnection(username) {
     const teams  = extractTeams(data);
     const status = data.battleStatus || 1;
     console.log("[linkMicBattle] teams:", JSON.stringify(teams));
+    console.log("[linkMicBattle] puntos:", teams.map(t=>t.hostName+":"+t.points).join(", "));
 
     lastBattle = { status, teams, ownerUsername, timestamp: Date.now() };
     io.emit("battle", lastBattle);
@@ -313,6 +319,7 @@ async function startTikTokConnection(username) {
 
     const teams = extractTeams(data);
     if (teams.length === 0) return;
+    console.log("[linkMicArmies] puntos:", teams.map(t=>t.hostName+":"+t.points).join(", "));
 
     lastTeams  = teams;
     lastStatus = 1;

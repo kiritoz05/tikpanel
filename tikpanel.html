@@ -1992,156 +1992,121 @@ function App() {
             const teams = battle?.teams || [];
             const n = teams.length;
             const COLS = ["#fe2c55","#25f4ee","#a855f7","#f59e0b"];
+            const pts = t => t.points || 0;
 
-            /* ── Barra de progreso ── */
-            const Bar = ({pct,color,h=8,gradient}) =>
+            /* Barra */
+            const Bar = ({pct,color,h=6}) =>
               React.createElement("div",{style:{height:h,borderRadius:h/2,background:"#0d0d18",overflow:"hidden"}},
                 React.createElement("div",{style:{height:"100%",width:pct+"%",borderRadius:h/2,
-                  background:gradient||color,transition:"width 1.2s ease"}})
+                  background:color,transition:"width 1.2s ease"}})
               );
 
-            /* ── Estado badge ── */
+            /* Badge estado */
             const StatusBadge = () => battle?.status===1
-              ? React.createElement("span",{style:{background:"rgba(254,44,85,.15)",border:"1px solid rgba(254,44,85,.4)",
-                  borderRadius:20,padding:"3px 12px",fontSize:10,fontWeight:800,color:"#fe2c55",letterSpacing:1}},
-                  "🔴 EN CURSO")
-              : React.createElement("span",{style:{background:"rgba(37,244,238,.1)",border:"1px solid rgba(37,244,238,.3)",
-                  borderRadius:20,padding:"3px 12px",fontSize:10,fontWeight:800,color:"#25f4ee",letterSpacing:1}},
-                  "✅ FINALIZADA");
+              ? React.createElement("span",{style:{background:"rgba(254,44,85,.15)",
+                  border:"1px solid rgba(254,44,85,.4)",borderRadius:20,padding:"3px 12px",
+                  fontSize:10,fontWeight:800,color:"#fe2c55",letterSpacing:1}},"🔴 EN CURSO")
+              : React.createElement("span",{style:{background:"rgba(37,244,238,.1)",
+                  border:"1px solid rgba(37,244,238,.3)",borderRadius:20,padding:"3px 12px",
+                  fontSize:10,fontWeight:800,color:"#25f4ee",letterSpacing:1}},"✅ FINALIZADA");
 
-            /* ══ MODO 1v1 (diseño imagen) ══ */
+            /* ══ 1v1 ══ */
             const Render1v1 = ({a,b}) => {
               const na=getName(a), nb=getName(b);
-              const total=(a.points+b.points)||1;
-              const pct0=Math.round(a.points/total*100), pct1=100-pct0;
-              const diff=Math.abs(a.points-b.points);
-              const winA=a.points>=b.points;
-              const leader = winA ? na : nb;
+              const pa=pts(a), pb=pts(b);
+              const total=(pa+pb)||1;
+              const pct0=Math.round(pa/total*100), pct1=100-pct0;
+              const diff=Math.abs(pa-pb);
+              const winA=pa>=pb;
               return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:10}},
-
-                /* ── Card principal VS ── */
-                React.createElement("div",{style:{background:"#12121e",border:"1px solid #1e1e2e",
-                  borderRadius:16,padding:"14px 16px"}},
-
-                  /* Nombres fijos */
+                /* VS card */
+                React.createElement("div",{style:{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:16,padding:"14px 16px"}},
+                  /* nombres */
                   React.createElement("div",{style:{display:"flex",alignItems:"flex-start",gap:6,marginBottom:12}},
                     React.createElement("div",{style:{flex:1,minWidth:0}},
-                      React.createElement("div",{style:{fontSize:11,fontWeight:800,color:"#fe2c55",
-                        wordBreak:"break-word",lineHeight:1.3}},"@"+na)
+                      React.createElement("div",{style:{fontSize:11,fontWeight:800,color:"#fe2c55",wordBreak:"break-word",lineHeight:1.3}},"@"+na)
                     ),
-                    React.createElement("div",{style:{flexShrink:0}},
-                      React.createElement("div",{style:{background:"#0d0d18",border:"1px solid #252535",
-                        borderRadius:8,padding:"4px 10px",textAlign:"center"}},
-                        React.createElement("div",{style:{fontWeight:900,fontSize:13,color:"#555",letterSpacing:2}},"VS"),
-                        React.createElement("div",{style:{fontSize:16,marginTop:2}},"⚡")
-                      )
+                    React.createElement("div",{style:{flexShrink:0,background:"#0d0d18",border:"1px solid #252535",borderRadius:8,padding:"4px 10px",textAlign:"center"}},
+                      React.createElement("div",{style:{fontWeight:900,fontSize:13,color:"#555",letterSpacing:2}},"VS"),
+                      React.createElement("div",{style:{fontSize:16,marginTop:2}},"⚡")
                     ),
                     React.createElement("div",{style:{flex:1,minWidth:0,textAlign:"right"}},
-                      React.createElement("div",{style:{fontSize:11,fontWeight:800,color:"#25f4ee",
-                        wordBreak:"break-word",lineHeight:1.3}},"@"+nb)
+                      React.createElement("div",{style:{fontSize:11,fontWeight:800,color:"#25f4ee",wordBreak:"break-word",lineHeight:1.3}},"@"+nb)
                     )
                   ),
-
-                  /* Puntajes */
-                  React.createElement("div",{style:{display:"flex",justifyContent:"space-between",
-                    alignItems:"flex-end",marginBottom:8}},
+                  /* puntajes */
+                  React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:8}},
                     React.createElement("div",{},
-                      React.createElement("div",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,
-                        fontSize:42,color:"#fe2c55",lineHeight:1}},a.points.toLocaleString()),
+                      React.createElement("div",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:42,color:"#fe2c55",lineHeight:1}},pa.toLocaleString()),
                       React.createElement("div",{style:{fontSize:10,color:"#fe2c5570",fontWeight:700,marginTop:2}},"puntos")
                     ),
                     React.createElement("div",{style:{textAlign:"right"}},
-                      React.createElement("div",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,
-                        fontSize:42,color:"#25f4ee",lineHeight:1}},b.points.toLocaleString()),
+                      React.createElement("div",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:42,color:"#25f4ee",lineHeight:1}},pb.toLocaleString()),
                       React.createElement("div",{style:{fontSize:10,color:"#25f4ee70",fontWeight:700,marginTop:2}},"puntos")
                     )
                   ),
-
-                  /* Barra doble */
-                  React.createElement("div",{style:{height:12,borderRadius:6,background:"#0d0d18",
-                    overflow:"hidden",display:"flex",marginBottom:6}},
-                    React.createElement("div",{style:{height:"100%",width:pct0+"%",
-                      background:"linear-gradient(90deg,#fe2c55,#ff6b81)",transition:"width 1.2s ease"}}),
-                    React.createElement("div",{style:{height:"100%",width:pct1+"%",
-                      background:"linear-gradient(90deg,#0ea5e9,#25f4ee)",transition:"width 1.2s ease"}})
+                  /* barra */
+                  React.createElement("div",{style:{height:12,borderRadius:6,background:"#0d0d18",overflow:"hidden",display:"flex",marginBottom:6}},
+                    React.createElement("div",{style:{height:"100%",width:pct0+"%",background:"linear-gradient(90deg,#fe2c55,#ff6b81)",transition:"width 1.2s ease"}}),
+                    React.createElement("div",{style:{height:"100%",width:pct1+"%",background:"linear-gradient(90deg,#0ea5e9,#25f4ee)",transition:"width 1.2s ease"}})
                   ),
-
-                  /* Porcentajes */
                   React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:8}},
                     React.createElement("span",{style:{fontSize:10,fontWeight:800,color:"#fe2c55"}},pct0+"%"),
-                    React.createElement("span",{style:{fontSize:9,color:"#444"}},(a.points+b.points).toLocaleString()+" total"),
+                    React.createElement("span",{style:{fontSize:9,color:"#444"}},(pa+pb).toLocaleString()+" total"),
                     React.createElement("span",{style:{fontSize:10,fontWeight:800,color:"#25f4ee"}},pct1+"%")
                   ),
-
-                  /* Quién va ganando */
-                  diff>0 && React.createElement("div",{style:{background:"#0d0d18",borderRadius:8,
-                    padding:"7px 12px",fontSize:11,color:"#888",textAlign:"center"}},
-                    React.createElement("span",{style:{color:winA?"#fe2c55":"#25f4ee",fontWeight:800}},"@"+leader),
+                  /* va ganando */
+                  diff>0 && React.createElement("div",{style:{background:"#0d0d18",borderRadius:8,padding:"7px 12px",fontSize:11,color:"#888",textAlign:"center"}},
+                    React.createElement("span",{style:{color:winA?"#fe2c55":"#25f4ee",fontWeight:800}},"@"+(winA?na:nb)),
                     " va ganando por ",
                     React.createElement("span",{style:{fontWeight:900,color:"#fff"}},diff.toLocaleString())
                   )
                 ),
-
-                /* ── Equipo A y B lado a lado ── */
+                /* equipos lado a lado */
                 React.createElement("div",{style:{display:"flex",gap:8}},
                   ...[{team:a,c:"#fe2c55",pct:pct0,win:winA,nm:na,label:"Equipo A"},
                       {team:b,c:"#25f4ee",pct:pct1,win:!winA,nm:nb,label:"Equipo B"}]
                     .map(({team,c,pct,win,nm,label},i)=>
                       React.createElement("div",{key:i,style:{flex:1,background:"#12121e",
-                        border:`1px solid ${win?"rgba(255,215,0,.2)":"#1e1e2e"}`,
-                        borderRadius:13,padding:"10px 12px"}},
-                        React.createElement("div",{style:{fontSize:10,fontWeight:800,color:c,
-                          overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:3}},
-                          "@"+nm),
-                        React.createElement("div",{style:{display:"flex",justifyContent:"space-between",
-                          alignItems:"baseline",marginBottom:6}},
-                          React.createElement("div",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,
-                            fontSize:22,color:c}},team.points.toLocaleString()),
+                        border:`1px solid ${win?"rgba(255,215,0,.2)":"#1e1e2e"}`,borderRadius:13,padding:"10px 12px"}},
+                        React.createElement("div",{style:{fontSize:10,fontWeight:800,color:c,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:3}},"@"+nm),
+                        React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}},
+                          React.createElement("div",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:22,color:c}},pts(team).toLocaleString()),
                           React.createElement("div",{style:{fontSize:9,color:"#555"}},pct+"%")
                         ),
-                        React.createElement(Bar,{pct,color:c,h:4,
-                          gradient:`linear-gradient(90deg,${c},${c}88)`}),
+                        React.createElement(Bar,{pct,color:c,h:4}),
                         React.createElement("div",{style:{fontSize:9,color:"#444",marginTop:3}},label)
                       )
                     )
                 ),
-
-                /* ── Puntaje por anfitrión ── */
-                React.createElement("div",{style:{background:"#12121e",border:"1px solid #1e1e2e",
-                  borderRadius:13,padding:"12px 14px"}},
+                /* puntaje por anfitrión */
+                React.createElement("div",{style:{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:13,padding:"12px 14px"}},
                   React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,marginBottom:10}},
                     React.createElement("span",{style:{fontSize:13}},"📊"),
-                    React.createElement("span",{style:{fontSize:10,fontWeight:800,color:"#555",letterSpacing:1}},
-                      "PUNTAJE POR ANFITRIÓN")
+                    React.createElement("span",{style:{fontSize:10,fontWeight:800,color:"#555",letterSpacing:1}},"PUNTAJE POR ANFITRIÓN")
                   ),
                   ...[{team:a,c:"#fe2c55",nm:na},{team:b,c:"#25f4ee",nm:nb}].map(({team,c,nm},i)=>
                     React.createElement("div",{key:i,style:{marginBottom:i===0?10:0}},
-                      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",
-                        alignItems:"center",marginBottom:4}},
+                      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}},
                         React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6}},
-                          React.createElement("div",{style:{width:8,height:8,borderRadius:"50%",
-                            background:c,boxShadow:`0 0 6px ${c}`}}),
-                          React.createElement("span",{style:{fontSize:11,fontWeight:700,color:"#ccc",
-                            overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:160}},
-                            "@"+nm)
+                          React.createElement("div",{style:{width:8,height:8,borderRadius:"50%",background:c,boxShadow:`0 0 6px ${c}`}}),
+                          React.createElement("span",{style:{fontSize:11,fontWeight:700,color:"#ccc",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:160}},"@"+nm)
                         ),
-                        React.createElement("span",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,
-                          fontSize:16,color:"#fff"}},team.points.toLocaleString())
+                        React.createElement("span",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:16,color:"#fff"}},pts(team).toLocaleString())
                       ),
-                      React.createElement(Bar,{pct:Math.round(team.points/total*100),
-                        color:c,h:4,gradient:`linear-gradient(90deg,${c},${c}66)`})
+                      React.createElement(Bar,{pct:Math.round(pts(team)/total*100),color:c,h:4})
                     )
                   )
                 )
               );
             };
 
-            /* ══ MODO 2v2 ══ */
+            /* ══ 2v2 ══ */
             const Render2v2 = () => {
-              const groups = {};
-              teams.forEach(t=>{ const id=t.teamId!==undefined?t.teamId:Math.floor(teams.indexOf(t)/2); if(!groups[id]) groups[id]=[]; groups[id].push(t); });
+              const groups={};
+              teams.forEach((t,i)=>{ const id=t.teamId!==undefined?t.teamId:Math.floor(i/2); if(!groups[id]) groups[id]=[]; groups[id].push(t); });
               const gKeys=Object.keys(groups); const gA=groups[gKeys[0]]||[], gB=groups[gKeys[1]]||[];
-              const sumA=gA.reduce((s,t)=>s+(t.points||0),0), sumB=gB.reduce((s,t)=>s+(t.points||0),0);
+              const sumA=gA.reduce((s,t)=>s+pts(t),0), sumB=gB.reduce((s,t)=>s+pts(t),0);
               const total=(sumA+sumB)||1; const pA=Math.round(sumA/total*100); const winA=sumA>=sumB;
               return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:10}},
                 React.createElement("div",{style:{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:16,padding:14}},
@@ -2161,88 +2126,89 @@ function App() {
                     React.createElement("div",{style:{height:"100%",width:(100-pA)+"%",background:"linear-gradient(90deg,#0ea5e9,#25f4ee)",transition:"width 1.2s ease"}})
                   ),
                   React.createElement("div",{style:{display:"flex",justifyContent:"space-between",fontSize:9,color:"#555"}},
-                    React.createElement("span",{},pA+"%"), React.createElement("span",{},(100-pA)+"%"))
+                    React.createElement("span",{},pA+"%"),React.createElement("span",{},(100-pA)+"%"))
                 ),
                 React.createElement("div",{style:{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:13,padding:"12px 14px"}},
                   React.createElement("div",{style:{fontSize:9,fontWeight:800,color:"#555",letterSpacing:1,marginBottom:8}},"📊 PUNTAJE POR ANFITRIÓN"),
-                  ...[{grp:gA,c:"#fe2c55"},{grp:gB,c:"#25f4ee"}].flatMap(({grp,c})=>
-                    grp.map((t,i)=> React.createElement("div",{key:c+i,style:{display:"flex",justifyContent:"space-between",
-                      alignItems:"center",marginBottom:6}},
+                  ...[...gA.map(t=>({t,c:"#fe2c55"})),...gB.map(t=>({t,c:"#25f4ee"}))].map(({t,c},i)=>
+                    React.createElement("div",{key:i,style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}},
                       React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6}},
                         React.createElement("div",{style:{width:7,height:7,borderRadius:"50%",background:c}}),
-                        React.createElement("span",{style:{fontSize:11,color:"#ccc",fontWeight:700}},"@"+getName(t))
+                        React.createElement("span",{style:{fontSize:11,color:"#ccc",fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:170}},"@"+getName(t))
                       ),
-                      React.createElement("span",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:15,color:"#fff"}},(t.points||0).toLocaleString())
-                    ))
+                      React.createElement("span",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:15,color:"#fff"}},pts(t).toLocaleString())
+                    )
                   )
                 )
               );
             };
 
-            /* ══ MODO FFA (3, 4 jugadores o 1v3) ══ */
+            /* ══ FFA 3/4 jugadores ══ */
             const RenderFFA = () => {
-              const sorted=[...teams].sort((a,b)=>(b.points||0)-(a.points||0));
-              const maxPts=(sorted[0]?.points||0)||1;
+              const sorted=[...teams].sort((a,b)=>pts(b)-pts(a));
+              const maxPts=pts(sorted[0])||1;
+              const total=sorted.reduce((s,t)=>s+pts(t),0)||1;
               const medals=["👑","🥈","🥉","🎮"];
-              const total=sorted.reduce((s,t)=>s+(t.points||0),0)||1;
-              const modeLabel = n===3?"🎯 BATALLA 3":n===4?"🔥 BATALLA 4":"⚔️ MULTILUCHA";
+              const modeLabel=n===3?"🎯 BATALLA 3":"🔥 BATALLA 4";
               return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:10}},
-                /* cabecera */
+                /* cabecera con barra multicolor */
                 React.createElement("div",{style:{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:16,padding:14}},
-                  React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}},
-                    React.createElement("div",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:36,color:COLS[0]}},(sorted[0]?.points||0).toLocaleString()),
+                  React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:10}},
+                    React.createElement("div",{},
+                      React.createElement("div",{style:{fontSize:9,color:COLS[0]+"80",fontWeight:700,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:120}},"@"+getName(sorted[0])),
+                      React.createElement("div",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:36,color:COLS[0]}},pts(sorted[0]).toLocaleString())
+                    ),
                     React.createElement("div",{style:{background:"#0d0d18",borderRadius:8,padding:"4px 12px",fontSize:9,fontWeight:800,color:"#555"}},modeLabel),
-                    React.createElement("div",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:36,color:COLS[1]}},(sorted[1]?.points||0).toLocaleString())
+                    React.createElement("div",{style:{textAlign:"right"}},
+                      React.createElement("div",{style:{fontSize:9,color:COLS[1]+"80",fontWeight:700,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:120}},"@"+getName(sorted[1])),
+                      React.createElement("div",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:36,color:COLS[1]}},pts(sorted[1]).toLocaleString())
+                    )
                   ),
-                  React.createElement("div",{style:{height:10,borderRadius:5,background:"#0d0d18",overflow:"hidden",display:"flex"}},
+                  React.createElement("div",{style:{height:12,borderRadius:6,background:"#0d0d18",overflow:"hidden",display:"flex",marginBottom:5}},
                     sorted.map((t,i)=>React.createElement("div",{key:i,style:{height:"100%",
-                      width:Math.round((t.points||0)/total*100)+"%",
+                      width:Math.round(pts(t)/total*100)+"%",
                       background:COLS[i]||"#444",transition:"width 1.2s ease"}}))
+                  ),
+                  React.createElement("div",{style:{display:"flex",justifyContent:"space-between",fontSize:9,color:"#555"}},
+                    sorted.map((t,i)=>React.createElement("span",{key:i,style:{color:COLS[i]}},Math.round(pts(t)/total*100)+"%"))
                   )
                 ),
-                /* tarjetas ranking */
+                /* ranking individual */
                 ...sorted.map((t,i)=> {
-                  const pct=Math.round((t.points||0)/maxPts*100);
+                  const p=Math.round(pts(t)/maxPts*100);
                   return React.createElement("div",{key:i,style:{background:"#12121e",
                     border:`1px solid ${i===0?"rgba(255,215,0,.25)":"#1e1e2e"}`,borderRadius:13,padding:"11px 13px"}},
                     React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:7}},
                       React.createElement("span",{style:{fontSize:18,minWidth:24}},medals[i]||"🎮"),
-                      React.createElement("div",{style:{flex:1,minWidth:0,fontWeight:800,fontSize:12,
-                        color:COLS[i]||"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},
-                        "@"+getName(t)),
+                      React.createElement("div",{style:{flex:1,minWidth:0,fontWeight:800,fontSize:12,color:COLS[i]||"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},"@"+getName(t)),
                       React.createElement("div",{style:{textAlign:"right",flexShrink:0}},
-                        React.createElement("div",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:26,
-                          color:COLS[i]||"#fff",lineHeight:1}},(t.points||0).toLocaleString()),
+                        React.createElement("div",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:26,color:COLS[i]||"#fff",lineHeight:1}},pts(t).toLocaleString()),
                         React.createElement("div",{style:{fontSize:9,color:"#555"}},"pts")
                       )
                     ),
-                    React.createElement(Bar,{pct,color:COLS[i]||"#444",h:5})
+                    React.createElement(Bar,{pct:p,color:COLS[i]||"#444",h:5})
                   );
                 }),
                 /* puntaje por anfitrión */
                 React.createElement("div",{style:{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:13,padding:"12px 14px"}},
                   React.createElement("div",{style:{fontSize:9,fontWeight:800,color:"#555",letterSpacing:1,marginBottom:8}},"📊 PUNTAJE POR ANFITRIÓN"),
-                  ...sorted.map((t,i)=>React.createElement("div",{key:i,style:{display:"flex",justifyContent:"space-between",
-                    alignItems:"center",marginBottom:6}},
+                  ...sorted.map((t,i)=>React.createElement("div",{key:i,style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}},
                     React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6}},
-                      React.createElement("div",{style:{width:7,height:7,borderRadius:"50%",background:COLS[i]||"#fff",
-                        boxShadow:`0 0 5px ${COLS[i]||"#fff"}`}}),
-                      React.createElement("span",{style:{fontSize:11,color:"#ccc",fontWeight:700,
-                        overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:170}},"@"+getName(t))
+                      React.createElement("div",{style:{width:7,height:7,borderRadius:"50%",background:COLS[i],boxShadow:`0 0 5px ${COLS[i]}`}}),
+                      React.createElement("span",{style:{fontSize:11,color:"#ccc",fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:170}},"@"+getName(t))
                     ),
-                    React.createElement("span",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:15,color:"#fff"}},(t.points||0).toLocaleString())
+                    React.createElement("span",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:15,color:"#fff"}},pts(t).toLocaleString())
                   ))
                 )
               );
             };
 
-            /* Detectar modo */
+            /* detectar modo */
             const has2v2 = n===4 && teams.some(t=>t.teamId!==undefined);
             const has1v1 = n===2;
             const hasFFA = n>=3;
 
             return React.createElement("div",{className:"ai"},
-              /* header */
               React.createElement("div",{style:{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:15,
                 marginBottom:14,display:"flex",alignItems:"center",gap:8}},
                 "⚔️ Batalla en vivo",
@@ -2250,23 +2216,20 @@ function App() {
                   borderRadius:"50%",background:"#fe2c55",boxShadow:"0 0 8px #fe2c55",display:"inline-block"}})
               ),
               n>0 && React.createElement("div",{style:{textAlign:"center",marginBottom:10}},React.createElement(StatusBadge,null)),
-
               !conn
-                ? React.createElement("div",{style:{textAlign:"center",padding:"40px 0",color:"#333",fontSize:12}},
-                    "Conecta tu LIVE para ver la batalla")
+                ? React.createElement("div",{style:{textAlign:"center",padding:"40px 0",color:"#333",fontSize:12}},"Conecta tu LIVE para ver la batalla")
                 : !battle
                   ? React.createElement("div",{style:{textAlign:"center",padding:"30px 0",color:"#444",fontSize:12}},
                       React.createElement("div",{style:{fontSize:40,marginBottom:12}},"⚔️"),
                       "Esperando batalla...",React.createElement("br",null),
-                      React.createElement("span",{style:{fontSize:10,color:"#333"}},
-                        "La batalla aparece automáticamente cuando el LIVE inicia un versus"))
+                      React.createElement("span",{style:{fontSize:10,color:"#333"}},"La batalla aparece automáticamente cuando el LIVE inicia un versus"))
                   : React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:0}},
                       has1v1 ? React.createElement(Render1v1,{a:teams[0],b:teams[1]}) :
                       has2v2 ? React.createElement(Render2v2,null) :
                       hasFFA ? React.createElement(RenderFFA,null) :
                       n===1  ? React.createElement("div",{style:{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:13,padding:14}},
-                                  React.createElement("div",{style:{fontWeight:800,fontSize:13,color:"#fe2c55",marginBottom:6}},"@"+(teams[0].hostNickname||teams[0].hostName)),
-                                  React.createElement("div",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:32,color:"#fe2c55"}},(teams[0].points||0).toLocaleString()),
+                                  React.createElement("div",{style:{fontWeight:800,fontSize:13,color:"#fe2c55",marginBottom:6}},"@"+getName(teams[0])),
+                                  React.createElement("div",{style:{fontFamily:"'Syne',sans-serif",fontWeight:900,fontSize:32,color:"#fe2c55"}},pts(teams[0]).toLocaleString()),
                                   React.createElement("div",{style:{fontSize:9,color:"#555",marginTop:4}},"Esperando oponente..."))
                              : React.createElement("div",{style:{textAlign:"center",color:"#444",fontSize:11,padding:"20px 0"}},"Sin datos aún..."),
                       battle?.timestamp && React.createElement("div",{style:{textAlign:"center",color:"#333",fontSize:9,marginTop:12}},
