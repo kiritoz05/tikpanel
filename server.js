@@ -17,6 +17,8 @@ app.use(cors());
 app.use(express.json());
 
 const sessions = {};
+let lastBattle = null; // Guarda última batalla para enviar al reconectar
+
 
 // ── Mapa global userId -> {uniqueId, nickname} ─────────────────────────────
 const userMap = {};
@@ -224,7 +226,9 @@ function emitUpdatedBattle(ownerUsername, lastTeams, status) {
       }
       return t;
     });
-    io.emit("battle", { status, teams: updated, ownerUsername, timestamp: Date.now() });
+    const bData1 = { status, teams: updated, ownerUsername, timestamp: Date.now() };
+    lastBattle = bData1;
+    io.emit("battle", bData1);
     console.log(`[battle-update] Re-emitido con @${uniqueId} resuelto`);
   };
 }
@@ -284,7 +288,8 @@ async function startTikTokConnection(username) {
     const status = data.battleStatus || 1;
     console.log("[linkMicBattle] teams:", JSON.stringify(teams));
 
-    io.emit("battle", { status, teams, ownerUsername, timestamp: Date.now() });
+    lastBattle = { status, teams, ownerUsername, timestamp: Date.now() };
+    io.emit("battle", lastBattle);
 
     // Resolver IDs numéricos automáticamente
     const cb = emitUpdatedBattle(ownerUsername, teams, status);
@@ -312,7 +317,8 @@ async function startTikTokConnection(username) {
     lastTeams  = teams;
     lastStatus = 1;
 
-    io.emit("battle", { status: 1, teams, ownerUsername, timestamp: Date.now() });
+    lastBattle = { status: 1, teams, ownerUsername, timestamp: Date.now() };
+    io.emit("battle", lastBattle);
 
     // Resolver IDs numéricos automáticamente en background
     const cb = emitUpdatedBattle(ownerUsername, teams, 1);
@@ -361,6 +367,13 @@ app.post("/disconnect", (req, res) => {
   const { username } = req.body;
   if (username) cleanSession(username);
   res.json({ success:true });
+});
+
+io.on("connection", (socket) => {
+  if (lastBattle) {
+    socket.emit("battle", lastBattle);
+    console.log("[socket] Enviando lastBattle a nuevo cliente");
+  }
 });
 
 const PORT = process.env.PORT || 3001;
