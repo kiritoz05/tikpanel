@@ -1097,6 +1097,7 @@ function App() {
     {id:"chat",      icon:"💬", l:"Chat"},
     {id:"batalla",   icon:"⚔️",  l:"Batalla"},
     {id:"espect",    icon:"👁️", l:"Espectadores"},
+    {id:"overlay",   icon:"🎬", l:"Overlay"},
   ];
 
   const LC = {gift:"rgba(254,44,85,.08)",follow:"rgba(37,244,238,.08)",msg:"rgba(255,255,255,.02)",
@@ -2237,6 +2238,84 @@ function App() {
                     )
             );
           })()}
+
+
+
+          {/* ── OVERLAY ── */}
+          {tab==="overlay" && (
+            <div className="ai">
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:15,marginBottom:16,
+                display:"flex",alignItems:"center",gap:8}}>
+                🎬 Overlay para TikTok Studio
+              </div>
+
+              {/* Instrucciones */}
+              <div style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:14,padding:14,marginBottom:12}}>
+                <div style={{fontSize:11,fontWeight:800,color:"#555",letterSpacing:1,marginBottom:10}}>📋 CÓMO INSTALAR</div>
+                {[
+                  {n:1, t:"Sube el archivo overlay-likes.html a tu GitHub junto con los demás archivos"},
+                  {n:2, t:"Abre TikTok Studio → Diseño → Agregar fuente → Navegador"},
+                  {n:3, t:"Pega la URL de abajo en TikTok Studio"},
+                  {n:4, t:"Tamaño recomendado: 420 × 700 px — marca ✅ Fondo transparente"},
+                ].map(({n,t})=>
+                  React.createElement("div",{key:n,style:{display:"flex",gap:10,marginBottom:8,alignItems:"flex-start"}},
+                    React.createElement("div",{style:{width:22,height:22,borderRadius:"50%",background:"rgba(254,44,85,.15)",
+                      border:"1px solid rgba(254,44,85,.3)",display:"flex",alignItems:"center",justifyContent:"center",
+                      flexShrink:0,fontSize:10,fontWeight:900,color:"#fe2c55"}},n),
+                    React.createElement("div",{style:{fontSize:11,color:"#aaa",lineHeight:1.5}},t)
+                  )
+                )}
+              </div>
+
+              {/* URL del overlay */}
+              <div style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:14,padding:14,marginBottom:12}}>
+                <div style={{fontSize:11,fontWeight:800,color:"#555",letterSpacing:1,marginBottom:8}}>🔗 URL DEL OVERLAY</div>
+                <div style={{background:"#0d0d18",borderRadius:10,padding:"10px 12px",
+                  fontFamily:"monospace",fontSize:11,color:"#25f4ee",wordBreak:"break-all",
+                  border:"1px solid rgba(37,244,238,.15)",lineHeight:1.6}}>
+                  https://tikpanel.vercel.app/overlay-likes.html
+                </div>
+                <div style={{fontSize:9,color:"#444",marginTop:6}}>
+                  💡 El overlay se actualiza en tiempo real con los likes de tu LIVE
+                </div>
+              </div>
+
+              {/* Preview miniatura */}
+              <div style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:14,padding:14,marginBottom:12}}>
+                <div style={{fontSize:11,fontWeight:800,color:"#555",letterSpacing:1,marginBottom:10}}>👁️ CARACTERÍSTICAS</div>
+                {[
+                  {ic:"👑", t:"Top 6 usuarios con más likes en tiempo real"},
+                  {ic:"🌈", t:"Fondo transparente — neon purple, cyan y rosa"},
+                  {ic:"♥",  t:"Corazón animado con conteo por usuario"},
+                  {ic:"✨", t:"Partículas y swirls decorativos animados"},
+                  {ic:"🔄", t:"Ranking se reordena automáticamente"},
+                  {ic:"📸", t:"Foto de perfil del usuario (cuando disponible)"},
+                ].map(({ic,t},i)=>
+                  React.createElement("div",{key:i,style:{display:"flex",gap:8,marginBottom:7,alignItems:"center"}},
+                    React.createElement("span",{style:{fontSize:14,minWidth:20}},ic),
+                    React.createElement("span",{style:{fontSize:11,color:"#999"}},t)
+                  )
+                )}
+              </div>
+
+              {/* Config streamer name */}
+              <div style={{background:"#12121e",border:"1px solid #1e1e2e",borderRadius:14,padding:14}}>
+                <div style={{fontSize:11,fontWeight:800,color:"#555",letterSpacing:1,marginBottom:8}}>⚙️ PERSONALIZACIÓN</div>
+                <div style={{fontSize:11,color:"#888",lineHeight:1.7}}>
+                  Edita estas líneas en <span style={{color:"#25f4ee",fontFamily:"monospace"}}>overlay-likes.html</span>:
+                  <div style={{background:"#0d0d18",borderRadius:8,padding:"10px 12px",marginTop:8,
+                    fontFamily:"monospace",fontSize:10,color:"#a855f7",lineHeight:2,border:"1px solid rgba(168,85,247,.15)"}}>
+                    <span style={{color:"#555"}}>// Tu nombre en el footer:</span><br/>
+                    STREAMER_NAME = <span style={{color:"#fe2c55"}}>"TOP LUZ ALVA"</span><br/>
+                    <span style={{color:"#555"}}>// Cuántos mostrar:</span><br/>
+                    TOP_N = <span style={{color:"#f59e0b"}}>6</span><br/>
+                    <span style={{color:"#555"}}>// false = conexión real:</span><br/>
+                    DEMO_MODE = <span style={{color:"#f59e0b"}}>false</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── ESPECTADORES ── */}
           {tab==="espect" && (
